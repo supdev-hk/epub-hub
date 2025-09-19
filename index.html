@@ -27,6 +27,7 @@
   <h1>(한사람을 위한 미술인문학) 개인을 넘어 우리 : AI를 활용한 글과 그림책 수업</h1>
   <h3>📚 전자책(EPUB) 다운로드 허브</h3>
   <h3>📚 전자책 다운로드는 2025년 10월 2일까지 가능합니다.</h3>
+
   <div class="card">
     <div class="row">
       <div>
@@ -44,16 +45,22 @@
 
   <div class="footer">
     이 페이지 링크를 QR로 만들면, 태블릿에서 QR 스캔 → 이 화면이 열립니다.<br/>
-    2025-09-19 
+    <!-- 필요시 날짜/안내 문구 수정 -->
   </div>
 
 <script>
+/**
+ * ✅ DATASET 예시
+ * - 파일링크는 같은 저장소의 파일을 가리키면 미리보기 가능 (예: "epub/xxx.epub" 또는 "/epub/xxx.epub")
+ * - 외부 링크(구글드라이브 등)는 다운로드만 가능 (CORS 제약으로 미리보기 제한)
+ */
 const DATASET = [
   { "소속":"서대문구 평생학습관 융복합인재교육센터", "작가명":"테스트강의자1", "작품명":"테스트",  "파일링크":"epub/test.epub" },
   { "소속":"서대문구 평생학습관 융복합인재교육센터", "작가명":"테스트강의자2", "작품명":"테스트2", "파일링크":"epub/test2.epub" },
-  { "소속":"서대문구 평생학습관 융복합인재교육센터", "작가명":"테스트강의자3", "작품명":"테스트3", "파일링크":"epub/test3.epub" },
+  { "소속":"서대문구 평생학습관 융복합인재교육센터", "작가명":"테스트강의자3", "작품명":"테스트3", "파일링크":"epub/test3.epub" }
 ];
 
+// 고유 작가명 리스트
 function getLecturers(){
   const set = new Set(DATASET.map(x => x["작가명"]));
   return ["(전체)"].concat([...set].sort());
@@ -112,27 +119,43 @@ function renderList(){
       row.className = "entry";
       const title = escapeHtml(item["작품명"]||"");
       const org = escapeHtml(item["소속"]||"");
-      const url = item["파일링크"]||"#";
+      const raw = (item["파일링크"]||"").trim();
+
       row.innerHTML = `
         <div>
           <div class="title">${title}</div>
           <div class="muted">${org}</div>
         </div>
-        <div class="actions">
-          <a class="btn" href="${url}" target="_blank" rel="noopener">다운로드</a>
-        </div>
+        <div class="actions"></div>
       `;
 
-      // ✅ 항상 여기서 미리보기 버튼 검증 후 추가
-      if(/^epub\//.test(url)){
-        const actions = row.querySelector('.actions');
-        const a = document.createElement('a');
-        a.className = 'btn alt';
-        a.href = 'viewer.html?book=' + encodeURIComponent(url);
-        a.target = '_blank';
-        a.rel = 'noopener';
-        a.textContent = '미리보기';
-        actions.appendChild(a);
+      // 액션 영역
+      const actions = row.querySelector('.actions');
+
+      // 항상 다운로드 버튼은 그림
+      const dl = document.createElement('a');
+      dl.className = 'btn';
+      dl.href = raw;
+      dl.target = '_blank';
+      dl.rel = 'noopener';
+      dl.textContent = '다운로드';
+      actions.appendChild(dl);
+
+      // ✅ 같은 출처 + /epub/ 경로 + .epub 확장자면 미리보기 버튼 표시
+      let u = null;
+      try { u = new URL(raw, location.href); } catch (e) {}
+      const isSameOrigin = u && u.origin === location.origin;
+      const p = u ? u.pathname.toLowerCase() : "";
+      const looksLikeEpub = p.includes("/epub/") && p.endsWith(".epub");
+
+      if (isSameOrigin && looksLikeEpub) {
+        const pv = document.createElement('a');
+        pv.className = 'btn alt';
+        pv.href = 'viewer.html?book=' + encodeURIComponent(u.pathname.startsWith('/') ? u.pathname.slice(1) : u.pathname);
+        pv.target = '_blank';
+        pv.rel = 'noopener';
+        pv.textContent = '미리보기';
+        actions.appendChild(pv);
       }
 
       card.appendChild(row);
