@@ -56,11 +56,11 @@
   <div class="card">
     <div class="row">
       <div>
-        <label class="muted">작가 선택</label>
+        <label class="muted">강의자 선택</label>
         <select id="lecturerSelect"></select>
       </div>
       <div>
-        <label class="muted">검색 (작품명/소속)</label>
+        <label class="muted">검색 (작품명/소속/작가명)</label>
         <input id="searchInput" type="search" placeholder="예) 윤동주"/>
       </div>
     </div>
@@ -79,7 +79,7 @@ const DATASET = [
     "소속": "서대문구 평생학습관 융복합인재교육센터",
     "작가명": "테스트강의자1",
     "작품명": "테스트",
-    "파일링크": "epub/test.epub"
+    "파일링크": "epub/test1.epub"
   },
    {
     "소속": "서대문구 평생학습관 융복합인재교육센터",
@@ -126,8 +126,7 @@ function renderList() {
   }
   if (q) {
     arr = arr.filter(x => 
-      (x["작품명"]||"").toLowerCase().includes(q) ||
-      (x["소속"]||"").toLowerCase().includes(q)
+      (x["작품명"]||"").toLowerCase().includes(q) || (x["소속"]||"").toLowerCase().includes(q) || (x["작가명"]||"").toLowerCase().includes(q)
     );
   }
 
