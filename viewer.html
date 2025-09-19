@@ -39,7 +39,7 @@
 <script>
 (function(){
   const p = new URLSearchParams(location.search);
-  const bookUrl = p.get('book');
+  let bookUrl = p.get('book');
   const msg = document.getElementById('msg');
   const tocSel = document.getElementById('toc');
   const prevBtn = document.getElementById('prev');
@@ -53,12 +53,17 @@
     return;
   }
 
-  downloadA.href = bookUrl;
+  // ✅ 경로 자동 보정 (저장소 이름 포함)
+  const repoName = location.pathname.split("/")[1]; // "epub-hub"
+  const baseUrl = location.origin + "/" + repoName + "/";
+  const resolved = new URL(bookUrl.replace(/^\\//,''), baseUrl);
+
+  downloadA.href = resolved.href;
 
   let book, rendition;
   try {
-    book = ePub(bookUrl);
-    rendition = book.renderTo("viewer", { width: "100%", height: "80vh" });
+    book = ePub(resolved.href);
+    rendition = book.renderTo("viewer", { width: "100%", height: "100%" });
     rendition.display();
 
     prevBtn.addEventListener('click', () => rendition.prev());
