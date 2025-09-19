@@ -1,105 +1,181 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>EPUB 미리보기</title>
-  <style>
-    :root{ --bg:#0f172a; --card:#111827; --muted:#94a3b8; --text:#e2e8f0; --accent:#22c55e; }
-    *{box-sizing:border-box}
-    body{margin:0;padding:16px;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial}
-    .wrap{max-width:980px;margin:0 auto}
-    h1{font-size:20px;margin:0 0 12px}
-    .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
-    .bar a.btn,.bar button.btn{padding:8px 12px;border-radius:10px;border:1px solid #1f2937;background:#0b1220;color:var(--text);text-decoration:none}
-    .bar .primary{background:var(--accent);color:#052e13;border:none;font-weight:700}
-    #viewer{height:80vh;border:1px solid #1f2937;border-radius:12px;background:#0b1220;overflow:hidden}
-    select,input{padding:8px 10px;background:#0b1220;color:var(--text);border:1px solid #1f2937;border-radius:10px}
-    .muted{color:var(--muted);font-size:12px}
-    .error{padding:12px;border:1px solid #7f1d1d;background:#1f0b0b;border-radius:12px;color:#fecaca;margin-top:10px}
-  </style>
-</head>
-<body>
-<div class="wrap">
-  <h1>📖 EPUB 미리보기</h1>
-  <div class="bar">
-    <button id="prev" class="btn">← 이전</button>
-    <button id="next" class="btn">다음 →</button>
-    <label class="muted">목차</label>
-    <select id="toc"></select>
-    <a id="download" class="btn primary" href="#" download>EPUB 다운로드</a>
-    <span id="meta" class="muted"></span>
-  </div>
-  <div id="viewer"></div>
-  <div id="msg" class="error" style="display:none"></div>
-</div>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>EPUB 미리보기 (Dark Theme)</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 16px;
+        background: #0f172a;
+        color: #e2e8f0;
+        font-family: sans-serif;
+      }
+      #viewer {
+        width: 100%;
+        height: 600px;
+        min-height: 400px;
+        border: 2px solid #22c55e;
+        border-radius: 8px;
+        background: #0b1220;
+        overflow: hidden;
+      }
+      .bar {
+        margin-bottom: 10px;
+      }
+      .btn {
+        padding: 6px 10px;
+        margin-right: 6px;
+        border-radius: 6px;
+        border: 1px solid #1f2937;
+        background: #22c55e;
+        color: #052e13;
+        cursor: pointer;
+      }
+      .error {
+        margin-top: 10px;
+        padding: 10px;
+        background: #1f0b0b;
+        color: #fecaca;
+        border: 1px solid #7f1d1d;
+        border-radius: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>📖 EPUB 미리보기 (Dark Theme)</h2>
+    <div class="bar">
+      <button id="prev" class="btn">← 이전</button>
+      <button id="next" class="btn">다음 →</button>
+      <select id="toc"></select>
+      <a id="download" class="btn" href="#" download>다운로드</a>
+      <span id="meta"></span>
+    </div>
+    <div id="viewer"></div>
+    <div id="msg" class="error" style="display: none"></div>
 
-<script src="js/epub.min.js"></script>
-<script>
-(function(){
-  const p = new URLSearchParams(location.search);
-  let bookUrl = p.get('book');
-  const msg = document.getElementById('msg');
-  const tocSel = document.getElementById('toc');
-  const prevBtn = document.getElementById('prev');
-  const nextBtn = document.getElementById('next');
-  const downloadA = document.getElementById('download');
-  const meta = document.getElementById('meta');
+    <!-- jszip (epub.js 필수) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js"></script>
+    <!-- epub.js -->
+    <script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.88/dist/epub.min.js"></script>
 
-  if(!bookUrl){
-    msg.style.display='block';
-    msg.textContent = 'book 파라미터가 없습니다. 예: viewer.html?book=epub/test.epub';
-    return;
-  }
+    <script>
+      (function () {
+        console.log("✅ viewer.html 실행 시작");
 
-  // ✅ 절대 URL로 보정
-  bookUrl = bookUrl.replace(/^\//, ""); // 앞 / 제거
-  if (!bookUrl.startsWith("epub/")) {
-    bookUrl = "epub/" + bookUrl;
-  }
-  const repoName = location.pathname.split("/")[1]; // "epub-hub"
-  const baseUrl = location.origin + "/" + repoName + "/";
-  const resolvedUrl = new URL(bookUrl, baseUrl).href;
+        const p = new URLSearchParams(location.search);
+        let bookUrl = p.get("book");
+        console.log("📌 raw book param =", bookUrl);
 
-  // 다운로드 버튼 링크 갱신
-  downloadA.href = resolvedUrl;
+        const msg = document.getElementById("msg");
+        const tocSel = document.getElementById("toc");
+        const prevBtn = document.getElementById("prev");
+        const nextBtn = document.getElementById("next");
+        const downloadA = document.getElementById("download");
+        const meta = document.getElementById("meta");
 
-  try {
-    const book = ePub(resolvedUrl);   // ✅ 절대경로로 전달
-    const rendition = book.renderTo("viewer", { width: "100%", height: "100%" });
-    rendition.display();
+        if (!bookUrl) {
+          msg.style.display = "block";
+          msg.textContent = "예: viewer.html?book=epub/sample_alice.epub";
+          console.error("❌ book 파라미터 없음");
+          return;
+        }
 
-    prevBtn.addEventListener('click', () => rendition.prev());
-    nextBtn.addEventListener('click', () => rendition.next());
+        // 경로 보정
+        bookUrl = bookUrl.replace(/^\//, "");
+        console.log("📌 최종 bookUrl =", bookUrl);
 
-    // TOC
-    book.loaded.navigation.then(function(toc){
-      tocSel.innerHTML = "";
-      (toc.toc || []).forEach(function(ch){
-        const opt = document.createElement('option');
-        opt.value = ch.href;
-        opt.textContent = ch.label;
-        tocSel.appendChild(opt);
-      });
-      tocSel.addEventListener('change', function(){
-        const href = this.value;
-        if(href) book.rendition.display(href);
-      });
-    });
+        downloadA.href = bookUrl;
 
-    // Metadata
-    book.loaded.metadata.then(function(m){
-      const bits = [];
-      if(m.title) bits.push(m.title);
-      if(m.creator) bits.push(m.creator);
-      if(m.publisher) bits.push(m.publisher);
-      if(bits.length) meta.textContent = '메타: ' + bits.join(' · ');
-    });
-  } catch(e){
-    msg.style.display='block';
-    msg.textContent = '미리보기 오류: ' + (e && e.message ? e.message : e);
-  }
-})();
-</script>
-</body>
+        try {
+          console.log("📌 ePub 초기화 시도:", bookUrl);
+          const book = ePub(bookUrl);
+
+          const rendition = book.renderTo("viewer", {
+            width: "100%",
+            height: "100%",
+          });
+
+          rendition
+            .display()
+            .then(() => {
+              console.log("✅ rendition.display() 성공");
+            })
+            .catch((e) => {
+              console.error("❌ rendition.display() 실패", e);
+            });
+
+          // ✅ 다크 테마 강제 적용
+          rendition.themes.register("dark", {
+            body: {
+              color: "#e2e8f0 !important",
+              background: "#0f172a !important",
+            },
+            p: { color: "#e2e8f0 !important" },
+            h1: { color: "#e2e8f0 !important" },
+            h2: { color: "#e2e8f0 !important" },
+            h3: { color: "#e2e8f0 !important" },
+            a: { color: "#60a5fa !important" },
+          });
+          rendition.themes.select("dark");
+
+          // Prev/Next
+          prevBtn.addEventListener("click", () => {
+            console.log("⬅️ prev");
+            rendition.prev();
+          });
+          nextBtn.addEventListener("click", () => {
+            console.log("➡️ next");
+            rendition.next();
+          });
+
+          // Navigation
+          book.loaded.navigation
+            .then((toc) => {
+              console.log("📌 TOC 로드됨:", toc);
+              tocSel.innerHTML = "";
+              (toc.toc || []).forEach((ch) => {
+                const opt = document.createElement("option");
+                opt.value = ch.href;
+                opt.textContent = ch.label;
+                tocSel.appendChild(opt);
+              });
+              tocSel.addEventListener("change", function () {
+                const href = this.value;
+                console.log("📌 TOC 선택:", href);
+                if (href) rendition.display(href);
+              });
+            })
+            .catch((e) => console.error("❌ TOC 로드 실패", e));
+
+          // Metadata
+          book.loaded.metadata
+            .then((m) => {
+              console.log("📌 Metadata 로드됨:", m);
+              const bits = [];
+              if (m.title) bits.push(m.title);
+              if (m.creator) bits.push(m.creator);
+              if (m.publisher) bits.push(m.publisher);
+              if (bits.length) meta.textContent = "정보: " + bits.join(" · ");
+            })
+            .catch((e) => console.error("❌ Metadata 로드 실패", e));
+
+          // Ready
+          book.ready
+            .then(() => {
+              console.log("✅ book.ready OK");
+            })
+            .catch((e) => {
+              console.error("❌ book.ready 실패", e);
+            });
+        } catch (e) {
+          console.error("❌ ePub init 오류", e);
+          msg.style.display = "block";
+          msg.textContent =
+            "미리보기 오류: " + (e && e.message ? e.message : e);
+        }
+      })();
+    </script>
+  </body>
 </html>
