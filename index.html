@@ -5,47 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>EPUB 다운로드 허브</title>
   <style>
-    :root {
-      --bg: #0f172a;
-      --card: #111827;
-      --muted: #94a3b8;
-      --text: #e2e8f0;
-      --accent: #22c55e;
-      --accent2: #60a5fa;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0; padding: 16px; background: var(--bg); color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Apple Color Emoji','Segoe UI Emoji','Segoe UI Symbol';
-    }
-    h1 { font-size: 22px; margin: 0 0 12px 0; }
-    .card {
-      background: var(--card); border-radius: 14px; padding: 14px; margin: 10px 0; 
-      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
-    }
-    .row { display: flex; gap: 8px; flex-wrap: wrap; }
-    .row > * { flex: 1 1 160px; min-width: 160px; }
-    input, select {
-      width: 100%; padding: 12px; background: #0b1220; color: var(--text);
-      border: 1px solid #1f2937; border-radius: 10px; outline: none;
-    }
-    input:focus, select:focus { border-color: var(--accent2); }
-    .pill {
-      font-size: 12px; color: var(--muted); border: 1px solid #374151; padding: 2px 8px; border-radius: 9999px;
-    }
-    .btn {
-      display:inline-block; padding: 10px 14px; background: var(--accent); color: #052e13;
-      border-radius: 10px; text-decoration: none; font-weight: 700;
-    }
-    .btn:hover { filter: brightness(1.1); }
-    .entry {
-      display: flex; align-items: center; justify-content: space-between; gap: 12px;
-      padding: 12px; border: 1px solid #1f2937; border-radius: 12px; margin: 8px 0;
-      background: #0b1220;
-    }
-    .title { font-weight: 700; }
-    .muted { color: var(--muted); font-size: 12px; }
-    .footer { text-align:center; color: var(--muted); margin-top: 20px; font-size: 12px; }
+    :root { --bg:#0f172a; --card:#111827; --muted:#94a3b8; --text:#e2e8f0; --accent:#22c55e; --accent2:#60a5fa; }
+    *{box-sizing:border-box}
+    body{margin:0;padding:16px;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial}
+    h1{font-size:22px;margin:0 0 12px 0}
+    .card{background:var(--card);border-radius:14px;padding:14px;margin:10px 0;box-shadow:0 8px 24px rgba(0,0,0,0.25)}
+    .row{display:flex;gap:8px;flex-wrap:wrap}
+    .row>*{flex:1 1 160px;min-width:160px}
+    input,select{width:100%;padding:12px;background:#0b1220;color:var(--text);border:1px solid #1f2937;border-radius:10px;outline:none}
+    input:focus,select:focus{border-color:var(--accent2)}
+    .btn{display:inline-block;padding:10px 14px;background:var(--accent);color:#052e13;border-radius:10px;text-decoration:none;font-weight:700}
+    .btn.alt{background:#0b1220;color:var(--text);border:1px solid #1f2937;margin-left:6px}
+    .entry{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border:1px solid #1f2937;border-radius:12px;margin:8px 0;background:#0b1220}
+    .title{font-weight:700}
+    .muted{color:var(--muted);font-size:12px}
+    .footer{text-align:center;color:var(--muted);margin-top:20px;font-size:12px}
   </style>
 </head>
 <body>
@@ -56,7 +30,7 @@
   <div class="card">
     <div class="row">
       <div>
-        <label class="muted">강의자 선택</label>
+        <label class="muted">작가 선택</label>
         <select id="lecturerSelect"></select>
       </div>
       <div>
@@ -75,33 +49,17 @@
 
 <script>
 const DATASET = [
-  {
-    "소속": "서대문구 평생학습관 융복합인재교육센터",
-    "작가명": "테스트강의자1",
-    "작품명": "테스트",
-    "파일링크": "epub/test.epub"
-  },
-   {
-    "소속": "서대문구 평생학습관 융복합인재교육센터",
-    "작가명": "테스트강의자2",
-    "작품명": "테스트2",
-    "파일링크": "epub/test2.epub"
-  },
-   {
-    "소속": "서대문구 평생학습관 융복합인재교육센터",
-    "작가명": "테스트강의자3",
-    "작품명": "테스트3",
-    "파일링크": "epub/test3.epub"
-  },
+  { "소속":"서대문구 평생학습관 융복합인재교육센터", "작가명":"테스트강의자1", "작품명":"테스트",  "파일링크":"epub/test.epub" },
+  { "소속":"서대문구 평생학습관 융복합인재교육센터", "작가명":"테스트강의자2", "작품명":"테스트2", "파일링크":"epub/test2.epub" },
+  { "소속":"서대문구 평생학습관 융복합인재교육센터", "작가명":"테스트강의자3", "작품명":"테스트3", "파일링크":"epub/test3.epub" },
 ];
 
-// Build unique lecturer list
-function getLecturers() {
+function getLecturers(){
   const set = new Set(DATASET.map(x => x["작가명"]));
-  return ["(전체)"].concat(Array.from(set).sort());
+  return ["(전체)"].concat([...set].sort());
 }
 
-function renderLecturerOptions() {
+function renderLecturerOptions(){
   const sel = document.getElementById("lecturerSelect");
   sel.innerHTML = "";
   getLecturers().forEach(name => {
@@ -110,44 +68,43 @@ function renderLecturerOptions() {
     opt.textContent = name;
     sel.appendChild(opt);
   });
-  const params = new URLSearchParams(location.search);
-  const q = params.get("lecturer");
-  if (q) { sel.value = q; }
+  const q = new URLSearchParams(location.search).get("lecturer");
+  if(q) sel.value = q;
 }
 
-function renderList() {
+function renderList(){
   const area = document.getElementById("listArea");
   const lecturer = document.getElementById("lecturerSelect").value;
   const q = document.getElementById("searchInput").value.trim().toLowerCase();
 
   let arr = DATASET.slice();
-  if (lecturer && lecturer !== "(전체)") {
-    arr = arr.filter(x => x["작가명"] === lecturer);
-  }
-  if (q) {
-    arr = arr.filter(x => 
-      (x["작품명"]||"").toLowerCase().includes(q) || (x["소속"]||"").toLowerCase().includes(q) || (x["작가명"]||"").toLowerCase().includes(q)
+  if(lecturer && lecturer !== "(전체)") arr = arr.filter(x => x["작가명"]===lecturer);
+  if(q){
+    arr = arr.filter(x =>
+      (x["작품명"]||"").toLowerCase().includes(q) ||
+      (x["소속"]||"").toLowerCase().includes(q)   ||
+      (x["작가명"]||"").toLowerCase().includes(q)
     );
   }
 
   area.innerHTML = "";
-  if (arr.length === 0) {
+  if(arr.length===0){
     area.innerHTML = '<div class="card muted">결과가 없습니다.</div>';
     return;
   }
 
-  const byLect = arr.reduce((acc, cur) => {
-    const key = cur["작가명"] || "미지정";
+  const byLect = arr.reduce((acc,cur)=>{
+    const key = cur["작가명"]||"미지정";
     (acc[key] ||= []).push(cur);
     return acc;
-  }, {});
+  },{});
 
   Object.keys(byLect).sort().forEach(lect => {
     const group = byLect[lect];
     const card = document.createElement("div");
     card.className = "card";
     const header = document.createElement("div");
-    header.innerHTML = '<div class="title">👤 ' + escapeHtml(lect) + '</div><div class="muted">' + group.length + '개 항목</div>';
+    header.innerHTML = '<div class="title">👤 '+escapeHtml(lect)+'</div><div class="muted">'+group.length+'개 항목</div>';
     card.appendChild(header);
 
     group.forEach(item => {
@@ -161,10 +118,23 @@ function renderList() {
           <div class="title">${title}</div>
           <div class="muted">${org}</div>
         </div>
-        <div>
+        <div class="actions">
           <a class="btn" href="${url}" target="_blank" rel="noopener">다운로드</a>
         </div>
       `;
+
+      // ✅ 항상 여기서 미리보기 버튼 검증 후 추가
+      if(/^epub\//.test(url)){
+        const actions = row.querySelector('.actions');
+        const a = document.createElement('a');
+        a.className = 'btn alt';
+        a.href = 'viewer.html?book=' + encodeURIComponent(url);
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.textContent = '미리보기';
+        actions.appendChild(a);
+      }
+
       card.appendChild(row);
     });
 
@@ -172,7 +142,7 @@ function renderList() {
   });
 }
 
-function escapeHtml(s) {
+function escapeHtml(s){
   return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#39;");
 }
 
