@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>EPUB 미리보기</title>
+  <style>
+    :root{ --bg:#0f172a; --card:#111827; --muted:#94a3b8; --text:#e2e8f0; --accent:#22c55e; --blue:#60a5fa; }
+    *{box-sizing:border-box}
+    body{margin:0;padding:16px;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial}
+    .wrap{max-width:980px;margin:0 auto}
+    h1{font-size:20px;margin:0 0 12px}
+    .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+    .bar a.btn,.bar button.btn{padding:8px 12px;border-radius:10px;border:1px solid #1f2937;background:#0b1220;color:var(--text);text-decoration:none}
+    .bar .primary{background:var(--accent);color:#052e13;border:none;font-weight:700}
+    #viewer{height:80vh;border:1px solid #1f2937;border-radius:12px;background:#0b1220;overflow:hidden}
+    select,input{padding:8px 10px;background:#0b1220;color:var(--text);border:1px solid #1f2937;border-radius:10px}
+    .muted{color:var(--muted);font-size:12px}
+    .error{padding:12px;border:1px solid #7f1d1d;background:#1f0b0b;border-radius:12px;color:#fecaca;margin-top:10px}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>📖 EPUB 미리보기</h1>
+  <div class="bar">
+    <button id="prev" class="btn">← 이전</button>
+    <button id="next" class="btn">다음 →</button>
+    <label class="muted">목차</label>
+    <select id="toc"></select>
+    <a id="download" class="btn primary" href="#" download>EPUB 다운로드</a>
+    <span id="meta" class="muted"></span>
+  </div>
+  <div id="viewer"></div>
+  <div id="msg" class="error" style="display:none"></div>
+  <div class="muted" style="margin-top:10px">같은 저장소(같은 출처)의 EPUB만 미리보기가 안정적으로 동작합니다. 외부 링크는 CORS/보안 정책으로 제한될 수 있습니다.</div>
+</div>
+<script src="https://unpkg.com/epubjs/dist/epub.min.js"></script>
+<script>
+(function(){
+  const p = new URLSearchParams(location.search);
+  const bookUrl = p.get('book');
+  const msg = document.getElementById('msg');
+  const viewer = document.getElementById('viewer');
+  const tocSel = document.getElementById('toc');
+  const prevBtn = document.getElementById('prev');
+  const nextBtn = document.getElementById('next');
+  const downloadA = document.getElementById('download');
+  const meta = document.getElementById('meta');
+
+  if(!bookUrl){
+    msg.style.display='block';
+    msg.textContent = 'book 파라미터가 없습니다. 예: viewer.html?book=epub/test.epub';
+    return;
+  }
+
+  downloadA.href = bookUrl;
+
+  let book, rendition;
+  try {
+    book = ePub(bookUrl);
+    rendition = book.renderTo("viewer", { width: "100%", height: "100%" });
+    rendition.display();
+
+    prevBtn.addEventListener('click', () => rendition.prev());
+    nextBtn.addEventListener('click', () => rendition.next());
+
+    book.loaded.navigation.then(function(toc){
+      tocSel.innerHTML = "";
+      (toc.toc || []).forEach(function(ch){
+        const opt = document.createElement('option');
+        opt.value = ch.href;
+        opt.textContent = ch.label;
+        tocSel.appendChild(opt);
+      });
+      tocSel.addEventListener('change', function(){
+        const href = this.value;
+        if(href) book.rendition.display(href);
+      });
+    });
+
+    book.loaded.metadata.then(function(m){
+      const bits = [];
+      if(m.title) bits.push(m.title);
+      if(m.creator) bits.push(m.creator);
+      if(m.publisher) bits.push(m.publisher);
+      if(bits.length) meta.textContent = '메타: ' + bits.join(' · ');
+    });
+  } catch(e){
+    msg.style.display='block';
+    msg.textContent = '미리보기를 여는 중 오류가 발생했습니다: ' + (e && e.message ? e.message : e);
+  }
+})();
+</script>
+</body>
+</html>
