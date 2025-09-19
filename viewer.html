@@ -34,8 +34,7 @@
   <div id="msg" class="error" style="display:none"></div>
 </div>
 
-<!-- ⚠️ 가능하다면 js/epub.min.js 로 교체 추천 -->
-<script src="js/epub.min.js"></script>
+<script src="https://unpkg.com/epubjs/dist/epub.min.js"></script>
 <script>
 (function(){
   const params = new URLSearchParams(location.search);
@@ -53,10 +52,10 @@
     return;
   }
 
-  // 항상 epub/ 하위 폴더로 경로 맞추기
-  bookUrl = bookUrl.replace(/^\\/?/, ''); // 맨 앞 슬래시 제거
-  if(!bookUrl.startsWith('epub/')) {
-    bookUrl = 'epub/' + bookUrl;
+  // ✅ 경로 보정
+  bookUrl = bookUrl.replace(/^\//, "");  // 앞의 / 제거
+  if (!bookUrl.startsWith("epub/")) {
+    bookUrl = "epub/" + bookUrl;
   }
 
   const repoName = location.pathname.split("/")[1]; // "epub-hub"
