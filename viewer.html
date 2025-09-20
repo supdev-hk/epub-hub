@@ -8,7 +8,7 @@
       body {
         margin: 0;
         padding: 16px;
-        background: #0f172a;
+        background: #0f172a; /* 페이지 배경은 어두운색 유지 */
         color: #e2e8f0;
         font-family: sans-serif;
       }
@@ -18,7 +18,7 @@
         min-height: 400px;
         border: 2px solid #22c55e;
         border-radius: 8px;
-        background: #0b1220;
+        background: #0b1220; /* 뷰어 영역 배경 */
         overflow: hidden;
       }
       .bar {
@@ -32,6 +32,7 @@
         background: #22c55e;
         color: #052e13;
         cursor: pointer;
+        font-weight: bold;
       }
       .error {
         margin-top: 10px;
@@ -44,16 +45,24 @@
     </style>
   </head>
   <body>
-    <div>      
-      <button id="home" onclick="location.href='index.html'" class="btn">🏠 홈으로</button>
-      
+    <div>
+      <button id="home" onclick="location.href='index.html'" class="btn">
+        🏠 홈으로
+      </button>
     </div>
     <h2>📖 EPUB 미리보기</h2>
     <div class="bar">
       <button id="prev" class="btn">← 이전</button>
       <button id="next" class="btn">다음 →</button>
       <select id="toc"></select>
-      <a id="download" class="btn" href="#" download>다운로드</a>
+      <a
+        id="download"
+        class="btn"
+        href="#"
+        style="text-decoration: none"
+        download
+        >다운로드</a
+      >
       <div id="meta"></div>
     </div>
     <div id="viewer"></div>
@@ -101,83 +110,50 @@
             height: "100%",
           });
 
-          rendition
-            .display()
-            .then(() => {
-              console.log("✅ rendition.display() 성공");
-            })
-            .catch((e) => {
-              console.error("❌ rendition.display() 실패", e);
-            });
-
-          // ✅ 다크 테마 강제 적용
-          rendition.themes.register("dark", {
-            body: {
-              color: "#e2e8f0 !important",
-              background: "#0f172a !important",
-            },
-            p: { color: "#e2e8f0 !important" },
-            h1: { color: "#e2e8f0 !important" },
-            h2: { color: "#e2e8f0 !important" },
-            h3: { color: "#e2e8f0 !important" },
-            a: { color: "#60a5fa !important" },
+          rendition.display().then(() => {
+            console.log("✅ rendition.display() 성공");
           });
-          rendition.themes.select("dark");
+
+          // ✅ 라이트 테마 고정
+          rendition.themes.register("light", {
+            body: {
+              color: "#000000 !important",
+              background: "#ffffff !important",
+            },
+            "p, h1, h2, h3, h4, h5, h6": { color: "#000000 !important" },
+            a: { color: "#1d4ed8 !important" },
+          });
+          rendition.themes.select("light");
 
           // Prev/Next
-          prevBtn.addEventListener("click", () => {
-            console.log("⬅️ prev");
-            rendition.prev();
-          });
-          nextBtn.addEventListener("click", () => {
-            console.log("➡️ next");
-            rendition.next();
-          });
+          prevBtn.addEventListener("click", () => rendition.prev());
+          nextBtn.addEventListener("click", () => rendition.next());
 
           // Navigation
-          book.loaded.navigation
-            .then((toc) => {
-              console.log("📌 TOC 로드됨:", toc);
-              tocSel.innerHTML = "";
-              (toc.toc || []).forEach((ch) => {
-                const opt = document.createElement("option");
-                opt.value = ch.href;
-                opt.textContent = ch.label;
-                tocSel.appendChild(opt);
-              });
-              tocSel.addEventListener("change", function () {
-                const href = this.value;
-                console.log("📌 TOC 선택:", href);
-                if (href) rendition.display(href);
-              });
-            })
-            .catch((e) => console.error("❌ TOC 로드 실패", e));
+          book.loaded.navigation.then((toc) => {
+            tocSel.innerHTML = "";
+            (toc.toc || []).forEach((ch) => {
+              const opt = document.createElement("option");
+              opt.value = ch.href;
+              opt.textContent = ch.label;
+              tocSel.appendChild(opt);
+            });
+            tocSel.addEventListener("change", function () {
+              if (this.value) rendition.display(this.value);
+            });
+          });
 
           // Metadata
-          book.loaded.metadata
-            .then((m) => {
-              console.log("📌 Metadata 로드됨:", m);
-              const bits = [];
-              if (m.title) bits.push(m.title);
-              if (m.creator) bits.push(m.creator);
-              if (m.publisher) bits.push(m.publisher);
-              if (bits.length) meta.textContent = "정보: " + bits.join(" · ");
-            })
-            .catch((e) => console.error("❌ Metadata 로드 실패", e));
-
-          // Ready
-          book.ready
-            .then(() => {
-              console.log("✅ book.ready OK");
-            })
-            .catch((e) => {
-              console.error("❌ book.ready 실패", e);
-            });
+          book.loaded.metadata.then((m) => {
+            const bits = [];
+            if (m.title) bits.push(m.title);
+            if (m.creator) bits.push(m.creator);
+            if (m.publisher) bits.push(m.publisher);
+            if (bits.length) meta.textContent = "정보: " + bits.join(" · ");
+          });
         } catch (e) {
-          console.error("❌ ePub init 오류", e);
           msg.style.display = "block";
-          msg.textContent =
-            "미리보기 오류: " + (e && e.message ? e.message : e);
+          msg.textContent = "미리보기 오류: " + (e.message || e);
         }
       })();
     </script>
