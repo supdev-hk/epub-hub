@@ -2,7 +2,12 @@
 <html lang="ko">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <!-- PWA 메타 태그들 -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0f172a">
     <title>EPUB 미리보기</title>
     <style>
       :root {
@@ -316,7 +321,11 @@
         .controls {
           flex-direction: column;
           align-items: stretch;
-        }
+          document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement && this.isFullscreen) {
+              console.log("브라우저 전체화면 해제됨");
+            }
+          });
 
         .btn {
           text-align: center;
@@ -499,6 +508,8 @@
             this.tocSel.addEventListener("change", () => {
               if (this.tocSel.value) {
                 this.rendition.display(this.tocSel.value);
+                // 목차로 이동 시에도 자동슬라이드 타이머 리셋
+                this.resetAutoSlideTimer();
               }
             });
           });
@@ -528,6 +539,7 @@
             this.slideSpeed = parseInt(e.target.value);
             this.speedDisplay.textContent = `${this.slideSpeed / 1000}초`;
             if (this.isAutoSlide) {
+              console.log("⚙️ 슬라이드 속도 변경:", this.slideSpeed + "ms");
               this.stopAutoSlide();
               this.startAutoSlide();
             }
@@ -623,6 +635,9 @@
           this.fullscreenBtn.textContent = '🔍 일반화면';
           this.fullscreenBtn.classList.add('active');
           
+          // 모바일에서 주소표시줄 숨기기 시도
+          this.hideMobileAddressBar();
+          
           // 전체화면 진입 시 힌트 메시지 표시
           this.showFullscreenHint();
           
@@ -639,6 +654,34 @@
           }, 300);
         }
 
+        hideMobileAddressBar() {
+          // 방법 1: 브라우저 전체화면 API 시도
+          if (document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen().catch(err => {
+              console.log("브라우저 전체화면 실패, 다른 방법 시도");
+              this.alternativeHideAddressBar();
+            });
+          } else {
+            this.alternativeHideAddressBar();
+          }
+        }
+
+        alternativeHideAddressBar() {
+          // 방법 2: 스크롤을 이용한 주소표시줄 숨기기
+          window.scrollTo(0, 1);
+          
+          // 방법 3: viewport height 조정
+          document.documentElement.style.height = '100vh';
+          document.body.style.height = '100vh';
+          
+          // 방법 4: iOS Safari 대응
+          if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+            setTimeout(() => {
+              window.scrollTo(0, 0);
+            }, 500);
+          }
+        }
+
         removeCssFullscreen() {
           document.body.classList.remove('fullscreen');
           this.container.classList.remove('fullscreen');
@@ -652,6 +695,17 @@
           
           this.fullscreenBtn.textContent = '🔍 전체화면';
           this.fullscreenBtn.classList.remove('active');
+
+          // 브라우저 전체화면 해제
+          if (document.exitFullscreen && document.fullscreenElement) {
+            document.exitFullscreen().catch(err => {
+              console.log("브라우저 전체화면 해제 실패");
+            });
+          }
+
+          // viewport 복원
+          document.documentElement.style.height = '';
+          document.body.style.height = '';
 
           // 뷰어 크기 재조정
           setTimeout(() => {
