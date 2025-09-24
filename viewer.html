@@ -156,6 +156,9 @@
       #viewer-container {
         position: relative;
         transition: all 0.3s ease;
+        /* 드래그 이벤트를 위한 설정 */
+        touch-action: pan-y;
+        user-select: none;
       }
 
       #viewer-container.fullscreen {
@@ -165,6 +168,18 @@
         top: 0;
         left: 0;
         z-index: 100;
+      }
+
+      /* 드래그 감지를 위한 오버레이 */
+      .drag-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 10;
+        pointer-events: auto;
+        background: transparent;
       }
 
       #viewer {
@@ -336,23 +351,46 @@
         }
 
         bindTouchEvents() {
-          // 마우스 이벤트
-          this.viewer.addEventListener('mousedown', (e) => this.handleStart(e));
-          this.viewer.addEventListener('mousemove', (e) => this.handleMove(e));
-          this.viewer.addEventListener('mouseup', (e) => this.handleEnd(e));
-          this.viewer.addEventListener('mouseleave', (e) => this.handleEnd(e));
+          console.log("🖱️ 터치 이벤트 바인딩 시작");
+          
+          // 드래그 오버레이에 이벤트 바인딩 (가장 확실한 방법)
+          this.dragOverlay.addEventListener('mousedown', (e) => {
+            console.log("🖱️ 마우스 다운 감지");
+            this.handleStart(e);
+          });
+          this.dragOverlay.addEventListener('mousemove', (e) => this.handleMove(e));
+          this.dragOverlay.addEventListener('mouseup', (e) => this.handleEnd(e));
+          this.dragOverlay.addEventListener('mouseleave', (e) => this.handleEnd(e));
 
           // 터치 이벤트
-          this.viewer.addEventListener('touchstart', (e) => this.handleStart(e), { passive: false });
-          this.viewer.addEventListener('touchmove', (e) => this.handleMove(e), { passive: false });
-          this.viewer.addEventListener('touchend', (e) => this.handleEnd(e));
-          this.viewer.addEventListener('touchcancel', (e) => this.handleEnd(e));
+          this.dragOverlay.addEventListener('touchstart', (e) => {
+            console.log("📱 터치 시작 감지");
+            this.handleStart(e);
+          }, { passive: false });
+          this.dragOverlay.addEventListener('touchmove', (e) => this.handleMove(e), { passive: false });
+          this.dragOverlay.addEventListener('touchend', (e) => this.handleEnd(e));
+          this.dragOverlay.addEventListener('touchcancel', (e) => this.handleEnd(e));
+
+          // 추가: 뷰어 컨테이너에도 바인딩
+          this.viewerContainer.addEventListener('mousedown', (e) => {
+            console.log("🖱️ 뷰어 컨테이너 마우스 다운");
+            this.handleStart(e);
+          });
+          this.viewerContainer.addEventListener('touchstart', (e) => {
+            console.log("📱 뷰어 컨테이너 터치 시작");
+            this.handleStart(e);
+          }, { passive: false });
 
           // 컨텍스트 메뉴 방지
-          this.viewer.addEventListener('contextmenu', (e) => e.preventDefault());
+          this.dragOverlay.addEventListener('contextmenu', (e) => e.preventDefault());
+          this.viewerContainer.addEventListener('contextmenu', (e) => e.preventDefault());
+          
+          console.log("✅ 터치 이벤트 바인딩 완료");
         }
 
         handleStart(e) {
+          console.log("🖱️ 드래그 시작 호출됨");
+          
           this.isDragging = true;
           
           const point = e.type.includes('touch') ? e.touches[0] : e;
@@ -361,9 +399,15 @@
           this.currentX = point.clientX;
           this.currentY = point.clientY;
 
-          this.viewer.classList.add('dragging');
+          this.viewerContainer.classList.add('dragging');
           
-          console.log("🖱️ 드래그 시작:", { x: this.startX, y: this.startY });
+          // 전역 이벤트 리스너 추가 (마우스가 요소 밖으로 나가도 추적)
+          document.addEventListener('mousemove', (e) => this.handleMove(e));
+          document.addEventListener('mouseup', (e) => this.handleEnd(e));
+          document.addEventListener('touchmove', (e) => this.handleMove(e), { passive: false });
+          document.addEventListener('touchend', (e) => this.handleEnd(e));
+          
+          console.log("🖱️ 드래그 시작:", { x: this.startX, y: this.startY, type: e.type });
         }
 
         handleMove(e) {
@@ -378,8 +422,11 @@
           const deltaX = this.currentX - this.startX;
           const deltaY = Math.abs(this.currentY - this.startY);
 
+          console.log("🖱️ 드래그 이동:", { deltaX, deltaY });
+
           // 세로 스크롤이 더 크면 드래그 취소
-          if (deltaY > Math.abs(deltaX) * 2) {
+          if (deltaY > Math.abs(deltaX) * 2 && deltaY > 30) {
+            console.log("🚫 세로 스크롤 감지, 드래그 취소");
             this.cancelDrag();
             return;
           }
@@ -390,16 +437,17 @@
               // 오른쪽으로 드래그 (이전 페이지)
               this.swipeIndicatorLeft.classList.add('active');
               this.swipeIndicatorRight.classList.remove('active');
+              console.log("👈 오른쪽 드래그 피드백");
             } else {
               // 왼쪽으로 드래그 (다음 페이지)
               this.swipeIndicatorRight.classList.add('active');
               this.swipeIndicatorLeft.classList.remove('active');
+              console.log("👉 왼쪽 드래그 피드백");
             }
 
             // 드래그 정도에 따른 시각적 효과
-            const intensity = Math.min(Math.abs(deltaX) / this.dragThreshold, 1);
             const transform = `translateX(${deltaX * 0.1}px)`;
-            this.viewer.style.transform = transform;
+            this.viewerContainer.style.transform = transform;
           }
         }
 
@@ -410,6 +458,12 @@
           const deltaY = Math.abs(this.currentY - this.startY);
 
           console.log("🖱️ 드래그 종료:", { deltaX, deltaY, threshold: this.dragThreshold });
+
+          // 전역 이벤트 리스너 제거
+          document.removeEventListener('mousemove', this.handleMove);
+          document.removeEventListener('mouseup', this.handleEnd);
+          document.removeEventListener('touchmove', this.handleMove);
+          document.removeEventListener('touchend', this.handleEnd);
 
           // 드래그 거리가 충분하고 가로 방향이면 페이지 이동
           if (Math.abs(deltaX) > this.dragThreshold && Math.abs(deltaX) > deltaY) {
@@ -422,6 +476,8 @@
               console.log("👉 왼쪽 드래그: 다음 페이지로");
               this.handleNextPageSwipe();
             }
+          } else {
+            console.log("🚫 드래그 거리 부족 또는 세로 드래그");
           }
 
           this.resetDragState();
@@ -433,9 +489,10 @@
         }
 
         resetDragState() {
+          console.log("🔄 드래그 상태 리셋");
           this.isDragging = false;
-          this.viewer.classList.remove('dragging');
-          this.viewer.style.transform = '';
+          this.viewerContainer.classList.remove('dragging');
+          this.viewerContainer.style.transform = '';
           this.swipeIndicatorLeft.classList.remove('active');
           this.swipeIndicatorRight.classList.remove('active');
         }
@@ -538,6 +595,7 @@
       </div>
 
       <div id="viewer-container">
+        <div class="drag-overlay" id="dragOverlay"></div>
         <div id="viewer"></div>
         <div class="swipe-indicator left" id="swipeIndicatorLeft">←</div>
         <div class="swipe-indicator right" id="swipeIndicatorRight">→</div>
@@ -592,6 +650,7 @@
           this.header = document.getElementById('header');
           this.viewerContainer = document.getElementById('viewer-container');
           this.viewer = document.getElementById('viewer');
+          this.dragOverlay = document.getElementById('dragOverlay');
           this.fullscreenBtn = document.getElementById('fullscreenBtn');
           this.autoSlideBtn = document.getElementById('autoSlideBtn');
           this.speedSlider = document.getElementById('speedSlider');
