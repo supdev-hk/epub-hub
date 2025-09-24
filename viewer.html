@@ -72,13 +72,13 @@
         background: rgba(15, 23, 42, 0.95);
         backdrop-filter: blur(10px);
         margin-bottom: 0;
-        transform: translateY(0); /* 기본적으로 보이도록 변경 */
+        transform: translateY(0);
         transition: transform 0.3s ease;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
       }
 
       .header.fullscreen.hidden {
-        transform: translateY(-100%); /* 숨길 때만 위로 이동 */
+        transform: translateY(-100%);
       }
 
       .controls {
@@ -163,6 +163,8 @@
       #viewer-container {
         position: relative;
         transition: all 0.3s ease;
+        touch-action: pan-y;
+        user-select: none;
       }
 
       #viewer-container.fullscreen {
@@ -172,6 +174,27 @@
         top: 0;
         left: 0;
         z-index: 100;
+      }
+
+      .drag-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 999;
+        pointer-events: auto;
+        background: transparent;
+        cursor: grab;
+        display: none;
+      }
+
+      .drag-overlay.active {
+        display: block;
+      }
+
+      .drag-overlay:active {
+        cursor: grabbing;
       }
 
       #viewer {
@@ -184,6 +207,9 @@
         overflow: hidden;
         position: relative;
         transition: all 0.3s ease;
+        touch-action: pan-y;
+        user-select: none;
+        z-index: 1;
       }
 
       #viewer.fullscreen {
@@ -259,7 +285,6 @@
         border-radius: 8px;
       }
 
-      /* 풀스크린에서 마우스 움직임으로 컨트롤 표시 */
       .fullscreen-overlay {
         position: fixed;
         top: 0;
@@ -275,7 +300,6 @@
         display: block;
       }
 
-      /* 전체화면 알림 메시지 */
       .fullscreen-hint {
         position: fixed;
         top: 20px;
@@ -296,13 +320,12 @@
         opacity: 1;
       }
 
-      /* 전체화면에서 상단 영역에 마우스 올릴 때 시각적 힌트 */
       .fullscreen-trigger-zone {
         position: fixed;
         top: 0;
         left: 0;
         right: 0;
-        height: 80px; /* 높이 증가 */
+        height: 80px;
         z-index: 999;
         background: linear-gradient(
           to bottom,
@@ -311,7 +334,7 @@
           transparent
         );
         display: none;
-        pointer-events: all; /* 마우스 이벤트 활성화 */
+        pointer-events: all;
         cursor: pointer;
       }
 
@@ -319,7 +342,6 @@
         display: block;
       }
 
-      /* 전체화면에서 더 넓은 상단 감지 영역 */
       .fullscreen-mouse-detector {
         position: fixed;
         top: 0;
@@ -335,6 +357,39 @@
       .fullscreen-mouse-detector.active {
         display: block;
       }
+
+      .swipe-indicator {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 24px;
+        color: var(--accent);
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        z-index: 50;
+        pointer-events: none;
+        background: rgba(255, 255, 255, 0.9);
+        padding: 10px;
+        border-radius: 50%;
+      }
+
+      .swipe-indicator.left {
+        left: 20px;
+      }
+
+      .swipe-indicator.right {
+        right: 20px;
+      }
+
+      .swipe-indicator.active {
+        opacity: 1;
+      }
+
+      #viewer-container.dragging {
+        cursor: grabbing;
+        transition: transform 0.1s ease;
+      }
+
       @media (max-width: 768px) {
         .controls {
           flex-direction: column;
@@ -351,13 +406,6 @@
         }
       }
     </style>
-    <script>
-      document.addEventListener("fullscreenchange", () => {
-        if (!document.fullscreenElement && this.isFullscreen) {
-          console.log("브라우저 전체화면 해제됨");
-        }
-      });
-    </script>
   </head>
   <body>
     <div class="container" id="container">
@@ -405,6 +453,8 @@
 
       <div id="viewer-container">
         <div id="viewer"></div>
+        <div class="swipe-indicator left" id="swipeIndicatorLeft">←</div>
+        <div class="swipe-indicator right" id="swipeIndicatorRight">→</div>
         <div class="auto-slide-indicator" id="autoSlideIndicator">⏰</div>
         <div class="progress-bar" id="progressBar" style="width: 0%"></div>
       </div>
@@ -438,6 +488,17 @@
           this.currentPage = 0;
           this.hideControlsTimeout = null;
 
+          // 터치/드래그 관련 변수
+          this.isDragging = false;
+          this.hasMoved = false;
+          this.startX = 0;
+          this.startY = 0;
+          this.currentX = 0;
+          this.currentY = 0;
+          this.dragThreshold = 50;
+          this.moveHandler = null;
+          this.endHandler = null;
+
           this.initElements();
           this.initBook();
           this.bindEvents();
@@ -469,6 +530,22 @@
           this.fullscreenMouseDetector = document.getElementById(
             "fullscreenMouseDetector"
           );
+          this.swipeIndicatorLeft =
+            document.getElementById("swipeIndicatorLeft");
+          this.swipeIndicatorRight = document.getElementById(
+            "swipeIndicatorRight"
+          );
+
+          // 드래그 오버레이를 동적으로 생성
+          this.createDragOverlay();
+        }
+
+        createDragOverlay() {
+          this.dragOverlay = document.createElement("div");
+          this.dragOverlay.className = "drag-overlay";
+          this.dragOverlay.id = "dragOverlay";
+          this.viewerContainer.appendChild(this.dragOverlay);
+          console.log("✅ 드래그 오버레이 생성됨");
         }
 
         initBook() {
@@ -483,7 +560,6 @@
             return;
           }
 
-          // 경로 보정
           bookUrl = bookUrl.replace(/^\//, "");
           console.log("📌 최종 bookUrl =", bookUrl);
 
@@ -496,7 +572,7 @@
             this.rendition = this.book.renderTo("viewer", {
               width: "100%",
               height: "100%",
-              spread: "never", // 단일 페이지 모드
+              spread: "never",
             });
 
             this.rendition.display().then(() => {
@@ -505,9 +581,13 @@
               this.initNavigation();
               this.initMetadata();
               this.updateProgress();
+
+              // epub 로딩 완료 후 드래그 오버레이 활성화
+              setTimeout(() => {
+                this.activateDragOverlay();
+              }, 1000);
             });
 
-            // 페이지 변경 이벤트 리스너
             this.rendition.on("relocated", (location) => {
               this.currentLocation = location;
               this.updateProgress();
@@ -517,8 +597,12 @@
           }
         }
 
+        activateDragOverlay() {
+          console.log("✅ 드래그 오버레이 활성화");
+          this.dragOverlay.classList.add("active");
+        }
+
         initThemes() {
-          // 라이트 테마 고정
           this.rendition.themes.register("light", {
             body: {
               color: "#000000 !important",
@@ -548,7 +632,6 @@
             this.tocSel.addEventListener("change", () => {
               if (this.tocSel.value) {
                 this.rendition.display(this.tocSel.value);
-                // 목차로 이동 시에도 자동슬라이드 타이머 리셋
                 this.resetAutoSlideTimer();
               }
             });
@@ -568,17 +651,13 @@
         }
 
         bindEvents() {
-          // 전체화면 토글
           this.fullscreenBtn.addEventListener("click", () =>
             this.toggleFullscreen()
           );
-
-          // 자동슬라이드 토글
           this.autoSlideBtn.addEventListener("click", () =>
             this.toggleAutoSlide()
           );
 
-          // 속도 조절
           this.speedSlider.addEventListener("input", (e) => {
             this.slideSpeed = parseInt(e.target.value);
             this.speedDisplay.textContent = `${this.slideSpeed / 1000}초`;
@@ -589,11 +668,9 @@
             }
           });
 
-          // 페이지 네비게이션
           this.prevBtn.addEventListener("click", () => this.prevPage());
           this.nextBtn.addEventListener("click", () => this.nextPage());
 
-          // 키보드 단축키
           document.addEventListener("keydown", (e) => {
             switch (e.key) {
               case "ArrowLeft":
@@ -622,17 +699,14 @@
             }
           });
 
-          // 풀스크린에서 마우스 움직임으로 컨트롤 표시/숨김
           document.addEventListener("mousemove", (e) => {
             if (this.isFullscreen) {
-              // 화면 상단 120px 영역에서 컨트롤 표시
               if (e.clientY <= 120) {
                 this.showControls();
               }
             }
           });
 
-          // 전체화면 상단 감지 영역에 마우스 이벤트
           this.fullscreenMouseDetector.addEventListener("mouseenter", () => {
             if (this.isFullscreen) {
               this.showControls();
@@ -645,7 +719,6 @@
             }
           });
 
-          // 전체화면에서 클릭으로도 컨트롤 토글
           this.fullscreenOverlay.addEventListener("click", (e) => {
             if (this.header.classList.contains("hidden")) {
               this.showControls();
@@ -653,6 +726,235 @@
               this.hideControls();
             }
           });
+
+          document.addEventListener("fullscreenchange", () => {
+            if (!document.fullscreenElement && this.isFullscreen) {
+              console.log("브라우저 전체화면 해제됨");
+            }
+          });
+
+          this.bindTouchEvents();
+        }
+
+        bindTouchEvents() {
+          console.log("🖱️ 터치 이벤트 바인딩 시작");
+
+          // 드래그 이벤트만 바인딩
+          this.dragOverlay.addEventListener(
+            "mousedown",
+            this.handleStart.bind(this)
+          );
+          this.dragOverlay.addEventListener(
+            "touchstart",
+            this.handleStart.bind(this),
+            { passive: false }
+          );
+
+          console.log("✅ 터치 이벤트 바인딩 완료");
+        }
+
+        handleStart(e) {
+          console.log("🖱️ 드래그 시작!");
+
+          // 클릭인지 드래그인지 구분하기 위한 플래그
+          this.isDragging = false;
+          this.hasMoved = false;
+
+          const point = e.type.includes("touch") ? e.touches[0] : e;
+          this.startX = point.clientX;
+          this.startY = point.clientY;
+          this.currentX = point.clientX;
+          this.currentY = point.clientY;
+
+          this.viewerContainer.classList.add("dragging");
+
+          // 전역 이벤트 리스너 추가
+          const moveHandler = this.handleMove.bind(this);
+          const endHandler = this.handleEnd.bind(this);
+
+          document.addEventListener("mousemove", moveHandler);
+          document.addEventListener("mouseup", endHandler);
+          document.addEventListener("touchmove", moveHandler, {
+            passive: false,
+          });
+          document.addEventListener("touchend", endHandler);
+
+          // 이벤트 제거를 위해 핸들러 저장
+          this.moveHandler = moveHandler;
+          this.endHandler = endHandler;
+
+          console.log("🖱️ 시작 좌표:", { x: this.startX, y: this.startY });
+        }
+
+        handleMove(e) {
+          if (this.hasMoved === false) {
+            // 첫 번째 움직임에서 드래그 시작으로 판단
+            this.isDragging = true;
+            this.hasMoved = true;
+            console.log("🖱️ 드래그 모드 시작");
+          }
+
+          if (!this.isDragging) return;
+
+          e.preventDefault();
+
+          const point = e.type.includes("touch") ? e.touches[0] : e;
+          this.currentX = point.clientX;
+          this.currentY = point.clientY;
+
+          const deltaX = this.currentX - this.startX;
+          const deltaY = Math.abs(this.currentY - this.startY);
+
+          // 세로 스크롤이 더 크면 드래그 취소
+          if (deltaY > Math.abs(deltaX) * 2 && deltaY > 30) {
+            console.log("🚫 세로 스크롤 감지, 드래그 취소");
+            this.cancelDrag();
+            return;
+          }
+
+          // 최소 드래그 거리 이상일 때만 시각적 피드백
+          if (Math.abs(deltaX) > 20) {
+            if (deltaX > 0) {
+              // 오른쪽으로 드래그 (이전 페이지)
+              this.swipeIndicatorLeft.classList.add("active");
+              this.swipeIndicatorRight.classList.remove("active");
+            } else {
+              // 왼쪽으로 드래그 (다음 페이지)
+              this.swipeIndicatorRight.classList.add("active");
+              this.swipeIndicatorLeft.classList.remove("active");
+            }
+
+            // 드래그에 따른 시각적 효과
+            const transform = `translateX(${deltaX * 0.1}px)`;
+            this.viewerContainer.style.transform = transform;
+          }
+
+          console.log("🖱️ 드래그 중:", { deltaX, deltaY });
+        }
+
+        handleEnd(e) {
+          // 전역 이벤트 리스너 제거
+          document.removeEventListener("mousemove", this.moveHandler);
+          document.removeEventListener("mouseup", this.endHandler);
+          document.removeEventListener("touchmove", this.moveHandler);
+          document.removeEventListener("touchend", this.endHandler);
+
+          if (!this.isDragging) {
+            // 단순 클릭인 경우
+            console.log("👆 단순 클릭 감지");
+            this.resetDragState();
+            return;
+          }
+
+          const deltaX = this.currentX - this.startX;
+          const deltaY = Math.abs(this.currentY - this.startY);
+
+          console.log("🖱️ 드래그 종료:", {
+            deltaX,
+            deltaY,
+            threshold: this.dragThreshold,
+            가로우선: Math.abs(deltaX) > deltaY,
+          });
+
+          // 드래그 거리가 충분하고 가로 방향이면 페이지 이동
+          if (
+            Math.abs(deltaX) > this.dragThreshold &&
+            Math.abs(deltaX) > deltaY
+          ) {
+            if (deltaX > 0) {
+              console.log("👈 오른쪽 드래그 → 이전 페이지");
+              this.handlePrevPageSwipe();
+            } else {
+              console.log("👉 왼쪽 드래그 → 다음 페이지");
+              this.handleNextPageSwipe();
+            }
+          } else {
+            console.log(
+              "🚫 페이지 이동 조건 미달 (거리:" + Math.abs(deltaX) + "px)"
+            );
+          }
+
+          this.resetDragState();
+        }
+
+        cancelDrag() {
+          console.log("🚫 드래그 취소 (세로 스크롤 감지)");
+          this.resetDragState();
+
+          // 전역 이벤트 리스너도 제거
+          document.removeEventListener("mousemove", this.moveHandler);
+          document.removeEventListener("mouseup", this.endHandler);
+          document.removeEventListener("touchmove", this.moveHandler);
+          document.removeEventListener("touchend", this.endHandler);
+        }
+
+        resetDragState() {
+          this.isDragging = false;
+          this.hasMoved = false;
+          this.viewerContainer.classList.remove("dragging");
+          this.viewerContainer.style.transform = "";
+          this.swipeIndicatorLeft.classList.remove("active");
+          this.swipeIndicatorRight.classList.remove("active");
+        }
+
+        handlePrevPageSwipe() {
+          if (this.isAtFirstPage()) {
+            console.log("🔄 첫 페이지에서 이전: 마지막 페이지로 이동");
+            this.goToLastPage();
+          } else {
+            this.prevPage();
+          }
+        }
+
+        handleNextPageSwipe() {
+          if (this.isAtLastPage()) {
+            console.log("🔄 마지막 페이지에서 다음: 첫 페이지로 이동");
+            this.goToFirstPage();
+          } else {
+            this.nextPage();
+          }
+        }
+
+        isAtFirstPage() {
+          const location = this.rendition.currentLocation();
+          if (!location || !location.start) return false;
+
+          const firstItem = this.book.spine.items[0];
+          return (
+            location.start.href === firstItem.href &&
+            location.start.percentage < 0.1
+          );
+        }
+
+        isAtLastPage() {
+          const location = this.rendition.currentLocation();
+          if (!location || !location.end) return false;
+
+          const lastItem =
+            this.book.spine.items[this.book.spine.items.length - 1];
+          return (
+            location.end.href === lastItem.href && location.end.percentage > 0.9
+          );
+        }
+
+        goToLastPage() {
+          if (
+            this.book &&
+            this.book.spine &&
+            this.book.spine.items.length > 0
+          ) {
+            const lastItem =
+              this.book.spine.items[this.book.spine.items.length - 1];
+            console.log("📍 마지막 페이지로 이동:", lastItem.href);
+            this.rendition.display(lastItem.href).then(() => {
+              setTimeout(() => {
+                const location = this.rendition.currentLocation();
+                if (location && location.end) {
+                  this.rendition.display(location.end.cfi);
+                }
+              }, 200);
+            });
+          }
         }
 
         toggleFullscreen() {
@@ -679,51 +981,18 @@
           this.fullscreenBtn.textContent = "🔍 일반화면";
           this.fullscreenBtn.classList.add("active");
 
-          // 모바일에서 주소표시줄 숨기기 시도
           this.hideMobileAddressBar();
-
-          // 전체화면 진입 시 힌트 메시지 표시
           this.showFullscreenHint();
 
-          // 전체화면 진입 시 컨트롤을 잠시 보여주고 5초 후 숨김
           setTimeout(() => {
             this.hideControls();
           }, 5000);
 
-          // 뷰어 크기 재조정
           setTimeout(() => {
             if (this.rendition) {
               this.rendition.resize();
             }
           }, 300);
-        }
-
-        hideMobileAddressBar() {
-          // 방법 1: 브라우저 전체화면 API 시도
-          if (document.documentElement.requestFullscreen) {
-            document.documentElement.requestFullscreen().catch((err) => {
-              console.log("브라우저 전체화면 실패, 다른 방법 시도");
-              this.alternativeHideAddressBar();
-            });
-          } else {
-            this.alternativeHideAddressBar();
-          }
-        }
-
-        alternativeHideAddressBar() {
-          // 방법 2: 스크롤을 이용한 주소표시줄 숨기기
-          window.scrollTo(0, 1);
-
-          // 방법 3: viewport height 조정
-          document.documentElement.style.height = "100vh";
-          document.body.style.height = "100vh";
-
-          // 방법 4: iOS Safari 대응
-          if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
-            setTimeout(() => {
-              window.scrollTo(0, 0);
-            }, 500);
-          }
         }
 
         removeCssFullscreen() {
@@ -740,18 +1009,15 @@
           this.fullscreenBtn.textContent = "🔍 전체화면";
           this.fullscreenBtn.classList.remove("active");
 
-          // 브라우저 전체화면 해제
           if (document.exitFullscreen && document.fullscreenElement) {
             document.exitFullscreen().catch((err) => {
               console.log("브라우저 전체화면 해제 실패");
             });
           }
 
-          // viewport 복원
           document.documentElement.style.height = "";
           document.body.style.height = "";
 
-          // 뷰어 크기 재조정
           setTimeout(() => {
             if (this.rendition) {
               this.rendition.resize();
@@ -759,11 +1025,27 @@
           }, 300);
         }
 
-        showFullscreenHint() {
-          this.fullscreenHint.classList.add("show");
-          setTimeout(() => {
-            this.fullscreenHint.classList.remove("show");
-          }, 4000);
+        hideMobileAddressBar() {
+          if (document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen().catch((err) => {
+              console.log("브라우저 전체화면 실패, 다른 방법 시도");
+              this.alternativeHideAddressBar();
+            });
+          } else {
+            this.alternativeHideAddressBar();
+          }
+        }
+
+        alternativeHideAddressBar() {
+          window.scrollTo(0, 1);
+          document.documentElement.style.height = "100vh";
+          document.body.style.height = "100vh";
+
+          if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+            setTimeout(() => {
+              window.scrollTo(0, 0);
+            }, 500);
+          }
         }
 
         toggleAutoSlide() {
@@ -795,20 +1077,16 @@
               return;
             }
 
-            // 현재 위치 저장
             const beforeLocation = this.rendition.currentLocation();
             console.log("📍 이동 전 위치:", beforeLocation);
 
-            // 다음 페이지로 이동 시도
             this.rendition
               .next()
               .then(() => {
-                // 이동 후 위치 확인
                 setTimeout(() => {
                   const afterLocation = this.rendition.currentLocation();
                   console.log("📍 이동 후 위치:", afterLocation);
 
-                  // 위치가 변하지 않았으면 마지막 페이지
                   const beforeCfi =
                     beforeLocation && beforeLocation.start
                       ? beforeLocation.start.cfi
@@ -840,12 +1118,25 @@
           console.log("🎬 자동슬라이드 시작됨, 간격:", this.slideSpeed + "ms");
         }
 
+        stopAutoSlide() {
+          if (this.autoSlideInterval) {
+            clearInterval(this.autoSlideInterval);
+            this.autoSlideInterval = null;
+          }
+        }
+
+        resetAutoSlideTimer() {
+          if (this.isAutoSlide && this.autoSlideInterval) {
+            console.log("🔄 자동슬라이드 타이머 리셋");
+            clearInterval(this.autoSlideInterval);
+            this.startAutoSlide();
+          }
+        }
+
         goToFirstPage() {
           console.log("🏠 첫 페이지로 이동 시도");
 
-          // 여러 방법으로 첫 페이지로 이동 시도
           try {
-            // 방법 1: spine의 첫 번째 아이템
             if (
               this.book &&
               this.book.spine &&
@@ -858,13 +1149,11 @@
               return;
             }
 
-            // 방법 2: 인덱스 0
             console.log("📍 방법2 - 인덱스 0으로 이동");
             this.rendition.display(0);
           } catch (error) {
             console.error("❌ 첫 페이지 이동 오류:", error);
 
-            // 방법 3: 강제 새로고침
             setTimeout(() => {
               const bookUrl = new URLSearchParams(location.search).get("book");
               if (bookUrl) {
@@ -872,13 +1161,6 @@
                 this.rendition.display(bookUrl);
               }
             }, 500);
-          }
-        }
-
-        stopAutoSlide() {
-          if (this.autoSlideInterval) {
-            clearInterval(this.autoSlideInterval);
-            this.autoSlideInterval = null;
           }
         }
 
@@ -898,18 +1180,16 @@
           }
         }
 
-        resetAutoSlideTimer() {
-          if (this.isAutoSlide && this.autoSlideInterval) {
-            console.log("🔄 자동슬라이드 타이머 리셋");
-            clearInterval(this.autoSlideInterval);
-            this.startAutoSlide();
-          }
+        showFullscreenHint() {
+          this.fullscreenHint.classList.add("show");
+          setTimeout(() => {
+            this.fullscreenHint.classList.remove("show");
+          }, 4000);
         }
 
         prevPage() {
           if (this.rendition) {
             this.rendition.prev();
-            // 수동 조작 시 자동슬라이드 타이머 리셋
             this.resetAutoSlideTimer();
           }
         }
@@ -921,11 +1201,9 @@
             this.rendition
               .next()
               .then(() => {
-                // 이동 후 위치 확인
                 setTimeout(() => {
                   const afterLocation = this.rendition.currentLocation();
 
-                  // 위치가 변하지 않았으면 마지막 페이지
                   const beforeCfi =
                     beforeLocation && beforeLocation.start
                       ? beforeLocation.start.cfi
@@ -943,7 +1221,6 @@
                   }
                 }, 100);
 
-                // 수동 조작 시 자동슬라이드 타이머 리셋
                 this.resetAutoSlideTimer();
               })
               .catch((error) => {
