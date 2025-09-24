@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <!-- PWA 메타 태그들 -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0f172a">
+    <title>EPUB 미리보기</title>
+    <style>
+      :root {
+        --bg: #0f172a;
+        --card: #111827;
+        --muted: #94a3b8;
+        --text: #e2e8f0;
+        --accent: #22c55e;
+        --accent2: #60a5fa;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 16px;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        transition: padding 0.3s ease;
+      }
+
+      body.fullscreen {
+        padding: 0;
+        overflow: hidden;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        transition: all 0.3s ease;
+      }
+
+      .container.fullscreen {
+        max-width: none;
+        margin: 0;
+        width: 100vw;
+        height: 100vh;
+        position: relative;
+      }
+
+      .header {
+        margin-bottom: 20px;
+        transition: all 0.3s ease;
+      }
+
+      .header.fullscreen {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        background: rgba(15, 23, 42, 0.95);
+        backdrop-filter: blur(10px);
+        margin-bottom: 0;
+        transform: translateY(0); /* 기본적으로 보이도록 변경 */
+        transition: transform 0.3s ease;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      }
+
+      .header.fullscreen.hidden {
+        transform: translateY(-100%); /* 숨길 때만 위로 이동 */
+      }
+
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+
+      .btn {
+        padding: 8px 12px;
+        border-radius: 8px;
+        border: 1px solid #1f2937;
+        background: var(--accent);
+        color: #052e13;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 14px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.3s ease;
+      }
+
+      .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+      }
+
+      .btn.secondary {
+        background: #0b1220;
+        color: var(--text);
+        border-color: #1f2937;
+      }
+
+      .btn.secondary:hover {
+        background: #1f2937;
+        box-shadow: 0 4px 12px rgba(31, 41, 55, 0.3);
+      }
+
+      .btn.active {
+        background: var(--accent2);
+        color: #0c4a6e;
+      }
+
+      .speed-control {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: #0b1220;
+        padding: 8px 12px;
+        border-radius: 8px;
+        border: 1px solid #1f2937;
+      }
+
+      .speed-slider {
+        width: 100px;
+      }
+
+      .speed-display {
+        min-width: 40px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      select {
+        padding: 8px 12px;
+        background: #0b1220;
+        color: var(--text);
+        border: 1px solid #1f2937;
+        border-radius: 8px;
+        outline: none;
+        max-width: 200px;
+      }
+
+      select:focus {
+        border-color: var(--accent2);
+      }
+
+      #viewer-container {
+        position: relative;
+        transition: all 0.3s ease;
+      }
+
+      #viewer-container.fullscreen {
+        width: 100vw;
+        height: 100vh;
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 100;
+      }
+
+      #viewer {
+        width: 100%;
+        height: 600px;
+        min-height: 400px;
+        border: 2px solid var(--accent);
+        border-radius: 12px;
+        background: #ffffff;
+        overflow: hidden;
+        position: relative;
+        transition: all 0.3s ease;
+        touch-action: pan-y; /* 세로 스크롤만 허용, 가로 스와이프는 차단 */
+        user-select: none; /* 드래그 중 텍스트 선택 방지 */
+      }
+
+      #viewer.fullscreen {
+        height: 100vh;
+        border: none;
+        border-radius: 0;
+      }
+
+      .auto-slide-indicator {
+        position: absolute;
+        top: 50%;
+        right: 20px;
+        transform: translateY(-50%);
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: rgba(34, 197, 94, 0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 20px;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        z-index: 50;
+        pointer-events: none;
+      }
+
+      .auto-slide-indicator.active {
+        opacity: 1;
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0% { transform: translateY(-50%) scale(1); }
+        50% { transform: translateY(-50%) scale(1.1); }
+        100% { transform: translateY(-50%) scale(1); }
+      }
+
+      .progress-bar {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        height: 4px;
+        background: var(--accent);
+        transition: width 0.3s ease;
+        z-index: 60;
+        border-radius: 0 0 12px 12px;
+      }
+
+      .progress-bar.fullscreen {
+        border-radius: 0;
+      }
+
+      .meta-info {
+        color: var(--muted);
+        font-size: 14px;
+        margin-top: 10px;
+      }
+
+      .error {
+        margin-top: 10px;
+        padding: 15px;
+        background: #1f0b0b;
+        color: #fecaca;
+        border: 1px solid #7f1d1d;
+        border-radius: 8px;
+      }
+
+      /* 풀스크린에서 마우스 움직임으로 컨트롤 표시 */
+      .fullscreen-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 10;
+        cursor: none;
+        display: none;
+      }
+
+      .fullscreen-overlay.active {
+        display: block;
+      }
+
+      /* 전체화면 알림 메시지 */
+      .fullscreen-hint {
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(34, 197, 94, 0.9);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 25px;
+        font-size: 14px;
+        z-index: 1001;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        pointer-events: none;
+      }
+
+      .fullscreen-hint.show {
+        opacity: 1;
+      }
+
+      /* 전체화면에서 상단 영역에 마우스 올릴 때 시각적 힌트 */
+      .fullscreen-trigger-zone {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 80px; /* 높이 증가 */
+        z-index: 999;
+        background: linear-gradient(to bottom, rgba(15, 23, 42, 0.3), rgba(15, 23, 42, 0.1), transparent);
+        display: none;
+        pointer-events: all; /* 마우스 이벤트 활성화 */
+        cursor: pointer;
+      }
+
+      .fullscreen-trigger-zone.active {
+        display: block;
+      }
+
+      /* 전체화면에서 더 넓은 상단 감지 영역 */
+      .fullscreen-mouse-detector {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 120px;
+        z-index: 998;
+        pointer-events: all;
+        display: none;
+        background: transparent;
+      }
+
+      .fullscreen-mouse-detector.active {
+        display: block;
+      }
+      @media (max-width: 768px) {
+        .controls {
+          flex-direction: column;
+          align-items: stretch;
+          // 브라우저 전체화면 상태 변경 감지
+          document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement && this.isFullscreen) {
+              // 브라우저 전체화면이 해제되었지만 앱 상태는 전체화면인 경우
+              console.log("브라우저 전체화면 해제됨");
+            }
+          });
+
+          // 터치/드래그 이벤트 바인딩
+          this.bindTouchEvents();
+        }
+
+        bindTouchEvents() {
+          // 마우스 이벤트
+          this.viewer.addEventListener('mousedown', (e) => this.handleStart(e));
+          this.viewer.addEventListener('mousemove', (e) => this.handleMove(e));
+          this.viewer.addEventListener('mouseup', (e) => this.handleEnd(e));
+          this.viewer.addEventListener('mouseleave', (e) => this.handleEnd(e));
+
+          // 터치 이벤트
+          this.viewer.addEventListener('touchstart', (e) => this.handleStart(e), { passive: false });
+          this.viewer.addEventListener('touchmove', (e) => this.handleMove(e), { passive: false });
+          this.viewer.addEventListener('touchend', (e) => this.handleEnd(e));
+          this.viewer.addEventListener('touchcancel', (e) => this.handleEnd(e));
+
+          // 컨텍스트 메뉴 방지
+          this.viewer.addEventListener('contextmenu', (e) => e.preventDefault());
+        }
+
+        handleStart(e) {
+          this.isDragging = true;
+          
+          const point = e.type.includes('touch') ? e.touches[0] : e;
+          this.startX = point.clientX;
+          this.startY = point.clientY;
+          this.currentX = point.clientX;
+          this.currentY = point.clientY;
+
+          this.viewer.classList.add('dragging');
+          
+          console.log("🖱️ 드래그 시작:", { x: this.startX, y: this.startY });
+        }
+
+        handleMove(e) {
+          if (!this.isDragging) return;
+
+          e.preventDefault();
+          
+          const point = e.type.includes('touch') ? e.touches[0] : e;
+          this.currentX = point.clientX;
+          this.currentY = point.clientY;
+
+          const deltaX = this.currentX - this.startX;
+          const deltaY = Math.abs(this.currentY - this.startY);
+
+          // 세로 스크롤이 더 크면 드래그 취소
+          if (deltaY > Math.abs(deltaX) * 2) {
+            this.cancelDrag();
+            return;
+          }
+
+          // 시각적 피드백
+          if (Math.abs(deltaX) > 20) {
+            if (deltaX > 0) {
+              // 오른쪽으로 드래그 (이전 페이지)
+              this.swipeIndicatorLeft.classList.add('active');
+              this.swipeIndicatorRight.classList.remove('active');
+            } else {
+              // 왼쪽으로 드래그 (다음 페이지)
+              this.swipeIndicatorRight.classList.add('active');
+              this.swipeIndicatorLeft.classList.remove('active');
+            }
+
+            // 드래그 정도에 따른 시각적 효과
+            const intensity = Math.min(Math.abs(deltaX) / this.dragThreshold, 1);
+            const transform = `translateX(${deltaX * 0.1}px)`;
+            this.viewer.style.transform = transform;
+          }
+        }
+
+        handleEnd(e) {
+          if (!this.isDragging) return;
+
+          const deltaX = this.currentX - this.startX;
+          const deltaY = Math.abs(this.currentY - this.startY);
+
+          console.log("🖱️ 드래그 종료:", { deltaX, deltaY, threshold: this.dragThreshold });
+
+          // 드래그 거리가 충분하고 가로 방향이면 페이지 이동
+          if (Math.abs(deltaX) > this.dragThreshold && Math.abs(deltaX) > deltaY) {
+            if (deltaX > 0) {
+              // 오른쪽으로 드래그 = 이전 페이지
+              console.log("👈 오른쪽 드래그: 이전 페이지로");
+              this.handlePrevPageSwipe();
+            } else {
+              // 왼쪽으로 드래그 = 다음 페이지
+              console.log("👉 왼쪽 드래그: 다음 페이지로");
+              this.handleNextPageSwipe();
+            }
+          }
+
+          this.resetDragState();
+        }
+
+        cancelDrag() {
+          console.log("🚫 드래그 취소 (세로 스크롤 감지)");
+          this.resetDragState();
+        }
+
+        resetDragState() {
+          this.isDragging = false;
+          this.viewer.classList.remove('dragging');
+          this.viewer.style.transform = '';
+          this.swipeIndicatorLeft.classList.remove('active');
+          this.swipeIndicatorRight.classList.remove('active');
+        }
+
+        handlePrevPageSwipe() {
+          // 첫 페이지에서 이전으로 가면 마지막 페이지로
+          if (this.isAtFirstPage()) {
+            console.log("🔄 첫 페이지에서 이전: 마지막 페이지로 이동");
+            this.goToLastPage();
+          } else {
+            this.prevPage();
+          }
+        }
+
+        handleNextPageSwipe() {
+          // 마지막 페이지에서 다음으로 가면 첫 페이지로
+          if (this.isAtLastPage()) {
+            console.log("🔄 마지막 페이지에서 다음: 첫 페이지로 이동");
+            this.goToFirstPage();
+          } else {
+            this.nextPage();
+          }
+        }
+
+        isAtFirstPage() {
+          const location = this.rendition.currentLocation();
+          if (!location || !location.start) return false;
+          
+          // spine의 첫 번째 아이템이고 페이지의 시작 부분인지 확인
+          const firstItem = this.book.spine.items[0];
+          return location.start.href === firstItem.href && location.start.percentage < 0.1;
+        }
+
+        isAtLastPage() {
+          const location = this.rendition.currentLocation();
+          if (!location || !location.end) return false;
+          
+          // spine의 마지막 아이템이고 페이지의 끝 부분인지 확인
+          const lastItem = this.book.spine.items[this.book.spine.items.length - 1];
+          return location.end.href === lastItem.href && location.end.percentage > 0.9;
+        }
+
+        goToLastPage() {
+          if (this.book && this.book.spine && this.book.spine.items.length > 0) {
+            const lastItem = this.book.spine.items[this.book.spine.items.length - 1];
+            console.log("📍 마지막 페이지로 이동:", lastItem.href);
+            this.rendition.display(lastItem.href).then(() => {
+              // 해당 섹션의 마지막으로 이동
+              setTimeout(() => {
+                const location = this.rendition.currentLocation();
+                if (location && location.end) {
+                  this.rendition.display(location.end.cfi);
+                }
+              }, 200);
+            });
+          }
+        }
+
+        .btn {
+          text-align: center;
+          justify-content: center;
+        }
+
+        .speed-control {
+          justify-content: space-between;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container" id="container">
+      <div class="header" id="header">
+        <div class="controls">
+          <button id="home" onclick="location.href='index.html'" class="btn">
+            🏠 홈으로
+          </button>
+          <button id="fullscreenBtn" class="btn secondary">
+            🔍 전체화면
+          </button>
+          <button id="autoSlideBtn" class="btn secondary">
+            ⏯️ 자동슬라이드
+          </button>
+          <div class="speed-control">
+            <span>속도:</span>
+            <input type="range" class="speed-slider" id="speedSlider" min="1000" max="10000" value="3000" step="500">
+            <span class="speed-display" id="speedDisplay">3초</span>
+          </div>
+        </div>
+        
+        <div class="controls">
+          <button id="prev" class="btn secondary">← 이전</button>
+          <button id="next" class="btn secondary">다음 →</button>
+          <select id="toc"></select>
+          <a id="download" class="btn" href="#" style="text-decoration: none" download>
+            📥 다운로드
+          </a>
+        </div>
+        
+        <div id="meta" class="meta-info"></div>
+      </div>
+
+      <div id="viewer-container">
+        <div id="viewer"></div>
+        <div class="swipe-indicator left" id="swipeIndicatorLeft">←</div>
+        <div class="swipe-indicator right" id="swipeIndicatorRight">→</div>
+        <div class="auto-slide-indicator" id="autoSlideIndicator">⏰</div>
+        <div class="progress-bar" id="progressBar" style="width: 0%;"></div>
+      </div>
+      
+      <div id="msg" class="error" style="display: none"></div>
+    </div>
+
+    <div class="fullscreen-overlay" id="fullscreenOverlay"></div>
+    <div class="fullscreen-hint" id="fullscreenHint">마우스를 화면 상단으로 이동하면 메뉴가 나타납니다</div>
+    <div class="fullscreen-trigger-zone" id="fullscreenTriggerZone"></div>
+    <div class="fullscreen-mouse-detector" id="fullscreenMouseDetector"></div>
+
+    <!-- jszip (epub.js 필수) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js"></script>
+    <!-- epub.js -->
+    <script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.88/dist/epub.min.js"></script>
+
+    <script>
+      class EnhancedEpubViewer {
+        constructor() {
+          this.book = null;
+          this.rendition = null;
+          this.isFullscreen = false;
+          this.isAutoSlide = false;
+          this.autoSlideInterval = null;
+          this.slideSpeed = 3000;
+          this.currentLocation = null;
+          this.totalPages = 0;
+          this.currentPage = 0;
+          this.hideControlsTimeout = null;
+          
+          // 터치/드래그 관련 변수
+          this.isDragging = false;
+          this.startX = 0;
+          this.startY = 0;
+          this.currentX = 0;
+          this.currentY = 0;
+          this.dragThreshold = 50; // 최소 드래그 거리
+          this.isFirstPage = false;
+          this.isLastPage = false;
+          
+          this.initElements();
+          this.initBook();
+          this.bindEvents();
+        }
+
+        initElements() {
+          this.container = document.getElementById('container');
+          this.header = document.getElementById('header');
+          this.viewerContainer = document.getElementById('viewer-container');
+          this.viewer = document.getElementById('viewer');
+          this.fullscreenBtn = document.getElementById('fullscreenBtn');
+          this.autoSlideBtn = document.getElementById('autoSlideBtn');
+          this.speedSlider = document.getElementById('speedSlider');
+          this.speedDisplay = document.getElementById('speedDisplay');
+          this.prevBtn = document.getElementById('prev');
+          this.nextBtn = document.getElementById('next');
+          this.tocSel = document.getElementById('toc');
+          this.downloadA = document.getElementById('download');
+          this.meta = document.getElementById('meta');
+          this.msg = document.getElementById('msg');
+          this.autoSlideIndicator = document.getElementById('autoSlideIndicator');
+          this.progressBar = document.getElementById('progressBar');
+          this.fullscreenOverlay = document.getElementById('fullscreenOverlay');
+          this.fullscreenHint = document.getElementById('fullscreenHint');
+          this.fullscreenTriggerZone = document.getElementById('fullscreenTriggerZone');
+          this.fullscreenMouseDetector = document.getElementById('fullscreenMouseDetector');
+          this.swipeIndicatorLeft = document.getElementById('swipeIndicatorLeft');
+          this.swipeIndicatorRight = document.getElementById('swipeIndicatorRight');
+        }
+
+        initBook() {
+          console.log("✅ Enhanced viewer.html 실행 시작");
+
+          const p = new URLSearchParams(location.search);
+          let bookUrl = p.get("book");
+          console.log("📌 raw book param =", bookUrl);
+
+          if (!bookUrl) {
+            this.showError("예: viewer.html?book=epub/test.epub");
+            return;
+          }
+
+          // 경로 보정
+          bookUrl = bookUrl.replace(/^\//, "");
+          console.log("📌 최종 bookUrl =", bookUrl);
+
+          this.downloadA.href = bookUrl;
+
+          try {
+            console.log("📌 ePub 초기화 시도:", bookUrl);
+            this.book = ePub(bookUrl);
+
+            this.rendition = this.book.renderTo("viewer", {
+              width: "100%",
+              height: "100%",
+              spread: "never" // 단일 페이지 모드
+            });
+
+            this.rendition.display().then(() => {
+              console.log("✅ rendition.display() 성공");
+              this.initThemes();
+              this.initNavigation();
+              this.initMetadata();
+              this.updateProgress();
+            });
+
+            // 페이지 변경 이벤트 리스너
+            this.rendition.on("relocated", (location) => {
+              this.currentLocation = location;
+              this.updateProgress();
+            });
+
+          } catch (e) {
+            this.showError("미리보기 오류: " + (e.message || e));
+          }
+        }
+
+        initThemes() {
+          // 라이트 테마 고정
+          this.rendition.themes.register("light", {
+            body: {
+              color: "#000000 !important",
+              background: "#ffffff !important",
+              "font-family": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important"
+            },
+            "p, h1, h2, h3, h4, h5, h6": { 
+              color: "#000000 !important",
+              "line-height": "1.6 !important"
+            },
+            a: { color: "#1d4ed8 !important" },
+          });
+          this.rendition.themes.select("light");
+        }
+
+        initNavigation() {
+          this.book.loaded.navigation.then((toc) => {
+            this.tocSel.innerHTML = "";
+            (toc.toc || []).forEach((ch) => {
+              const opt = document.createElement("option");
+              opt.value = ch.href;
+              opt.textContent = ch.label;
+              this.tocSel.appendChild(opt);
+            });
+            
+            this.tocSel.addEventListener("change", () => {
+              if (this.tocSel.value) {
+                this.rendition.display(this.tocSel.value);
+                // 목차로 이동 시에도 자동슬라이드 타이머 리셋
+                this.resetAutoSlideTimer();
+              }
+            });
+          });
+        }
+
+        initMetadata() {
+          this.book.loaded.metadata.then((m) => {
+            const bits = [];
+            if (m.title) bits.push(m.title);
+            if (m.creator) bits.push(m.creator);
+            if (m.publisher) bits.push(m.publisher);
+            if (bits.length) {
+              this.meta.textContent = "📖 " + bits.join(" · ");
+            }
+          });
+        }
+
+        bindEvents() {
+          // 전체화면 토글
+          this.fullscreenBtn.addEventListener('click', () => this.toggleFullscreen());
+          
+          // 자동슬라이드 토글
+          this.autoSlideBtn.addEventListener('click', () => this.toggleAutoSlide());
+          
+          // 속도 조절
+          this.speedSlider.addEventListener('input', (e) => {
+            this.slideSpeed = parseInt(e.target.value);
+            this.speedDisplay.textContent = `${this.slideSpeed / 1000}초`;
+            if (this.isAutoSlide) {
+              console.log("⚙️ 슬라이드 속도 변경:", this.slideSpeed + "ms");
+              this.stopAutoSlide();
+              this.startAutoSlide();
+            }
+          });
+          
+          // 페이지 네비게이션
+          this.prevBtn.addEventListener('click', () => this.prevPage());
+          this.nextBtn.addEventListener('click', () => this.nextPage());
+          
+          // 키보드 단축키
+          document.addEventListener('keydown', (e) => {
+            switch(e.key) {
+              case 'ArrowLeft':
+                e.preventDefault();
+                this.prevPage();
+                break;
+              case 'ArrowRight':
+                e.preventDefault();
+                this.nextPage();
+                break;
+              case 'f':
+              case 'F':
+                e.preventDefault();
+                this.toggleFullscreen();
+                break;
+              case ' ':
+                e.preventDefault();
+                this.toggleAutoSlide();
+                break;
+              case 'Escape':
+                if (this.isFullscreen) {
+                  e.preventDefault();
+                  this.toggleFullscreen();
+                }
+                break;
+            }
+          });
+
+          // 풀스크린에서 마우스 움직임으로 컨트롤 표시/숨김
+          document.addEventListener('mousemove', (e) => {
+            if (this.isFullscreen) {
+              // 화면 상단 120px 영역에서 컨트롤 표시
+              if (e.clientY <= 120) {
+                this.showControls();
+              }
+            }
+          });
+
+          // 전체화면 상단 감지 영역에 마우스 이벤트
+          this.fullscreenMouseDetector.addEventListener('mouseenter', () => {
+            if (this.isFullscreen) {
+              this.showControls();
+            }
+          });
+
+          this.fullscreenTriggerZone.addEventListener('click', () => {
+            if (this.isFullscreen) {
+              this.showControls();
+            }
+          });
+
+          // 전체화면에서 클릭으로도 컨트롤 토글
+          this.fullscreenOverlay.addEventListener('click', (e) => {
+            if (this.header.classList.contains('hidden')) {
+              this.showControls();
+            } else {
+              this.hideControls();
+            }
+          });
+        }
+
+        toggleFullscreen() {
+          this.isFullscreen = !this.isFullscreen;
+          
+          if (this.isFullscreen) {
+            this.applyCssFullscreen();
+          } else {
+            this.removeCssFullscreen();
+          }
+        }
+
+        applyCssFullscreen() {
+          document.body.classList.add('fullscreen');
+          this.container.classList.add('fullscreen');
+          this.header.classList.add('fullscreen');
+          this.viewerContainer.classList.add('fullscreen');
+          this.viewer.classList.add('fullscreen');
+          this.progressBar.classList.add('fullscreen');
+          this.fullscreenOverlay.classList.add('active');
+          this.fullscreenTriggerZone.classList.add('active');
+          this.fullscreenMouseDetector.classList.add('active');
+          
+          this.fullscreenBtn.textContent = '🔍 일반화면';
+          this.fullscreenBtn.classList.add('active');
+          
+          // 모바일에서 주소표시줄 숨기기 시도
+          this.hideMobileAddressBar();
+          
+          // 전체화면 진입 시 힌트 메시지 표시
+          this.showFullscreenHint();
+          
+          // 전체화면 진입 시 컨트롤을 잠시 보여주고 5초 후 숨김
+          setTimeout(() => {
+            this.hideControls();
+          }, 5000);
+
+          // 뷰어 크기 재조정
+          setTimeout(() => {
+            if (this.rendition) {
+              this.rendition.resize();
+            }
+          }, 300);
+        }
+
+        hideMobileAddressBar() {
+          // 방법 1: 브라우저 전체화면 API 시도
+          if (document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen().catch(err => {
+              console.log("브라우저 전체화면 실패, 다른 방법 시도");
+              this.alternativeHideAddressBar();
+            });
+          } else {
+            this.alternativeHideAddressBar();
+          }
+        }
+
+        alternativeHideAddressBar() {
+          // 방법 2: 스크롤을 이용한 주소표시줄 숨기기
+          window.scrollTo(0, 1);
+          
+          // 방법 3: viewport height 조정
+          document.documentElement.style.height = '100vh';
+          document.body.style.height = '100vh';
+          
+          // 방법 4: iOS Safari 대응
+          if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+            setTimeout(() => {
+              window.scrollTo(0, 0);
+            }, 500);
+          }
+        }
+
+        removeCssFullscreen() {
+          document.body.classList.remove('fullscreen');
+          this.container.classList.remove('fullscreen');
+          this.header.classList.remove('fullscreen', 'hidden');
+          this.viewerContainer.classList.remove('fullscreen');
+          this.viewer.classList.remove('fullscreen');
+          this.progressBar.classList.remove('fullscreen');
+          this.fullscreenOverlay.classList.remove('active');
+          this.fullscreenTriggerZone.classList.remove('active');
+          this.fullscreenMouseDetector.classList.remove('active');
+          
+          this.fullscreenBtn.textContent = '🔍 전체화면';
+          this.fullscreenBtn.classList.remove('active');
+
+          // 브라우저 전체화면 해제
+          if (document.exitFullscreen && document.fullscreenElement) {
+            document.exitFullscreen().catch(err => {
+              console.log("브라우저 전체화면 해제 실패");
+            });
+          }
+
+          // viewport 복원
+          document.documentElement.style.height = '';
+          document.body.style.height = '';
+
+          // 뷰어 크기 재조정
+          setTimeout(() => {
+            if (this.rendition) {
+              this.rendition.resize();
+            }
+          }, 300);
+        }
+
+        showFullscreenHint() {
+          this.fullscreenHint.classList.add('show');
+          setTimeout(() => {
+            this.fullscreenHint.classList.remove('show');
+          }, 4000);
+        }
+
+        toggleAutoSlide() {
+          this.isAutoSlide = !this.isAutoSlide;
+          
+          if (this.isAutoSlide) {
+            this.startAutoSlide();
+            this.autoSlideBtn.textContent = '⏸️ 슬라이드 정지';
+            this.autoSlideBtn.classList.add('active');
+            this.autoSlideIndicator.classList.add('active');
+          } else {
+            this.stopAutoSlide();
+            this.autoSlideBtn.textContent = '⏯️ 자동슬라이드';
+            this.autoSlideBtn.classList.remove('active');
+            this.autoSlideIndicator.classList.remove('active');
+          }
+        }
+
+        startAutoSlide() {
+          if (this.autoSlideInterval) {
+            clearInterval(this.autoSlideInterval);
+          }
+          
+          this.autoSlideInterval = setInterval(() => {
+            console.log("🔄 자동슬라이드: 페이지 이동 시도");
+            
+            if (!this.rendition) {
+              console.log("❌ rendition이 없음");
+              return;
+            }
+
+            // 현재 위치 저장
+            const beforeLocation = this.rendition.currentLocation();
+            console.log("📍 이동 전 위치:", beforeLocation);
+
+            // 다음 페이지로 이동 시도
+            this.rendition.next().then(() => {
+              // 이동 후 위치 확인
+              setTimeout(() => {
+                const afterLocation = this.rendition.currentLocation();
+                console.log("📍 이동 후 위치:", afterLocation);
+                
+                // 위치가 변하지 않았으면 마지막 페이지
+                const beforeCfi = beforeLocation && beforeLocation.start ? beforeLocation.start.cfi : null;
+                const afterCfi = afterLocation && afterLocation.start ? afterLocation.start.cfi : null;
+                
+                console.log("🔍 CFI 비교:", {before: beforeCfi, after: afterCfi});
+                
+                if (beforeCfi && afterCfi && beforeCfi === afterCfi) {
+                  console.log("🔄 마지막 페이지 감지! 첫 페이지로 이동");
+                  this.goToFirstPage();
+                } else {
+                  console.log("✅ 정상적으로 다음 페이지로 이동");
+                }
+              }, 100);
+              
+            }).catch((error) => {
+              console.error("❌ next() 오류:", error);
+              this.goToFirstPage();
+            });
+
+          }, this.slideSpeed);
+          
+          console.log("🎬 자동슬라이드 시작됨, 간격:", this.slideSpeed + "ms");
+        }
+
+        goToFirstPage() {
+          console.log("🏠 첫 페이지로 이동 시도");
+          
+          // 여러 방법으로 첫 페이지로 이동 시도
+          try {
+            // 방법 1: spine의 첫 번째 아이템
+            if (this.book && this.book.spine && this.book.spine.items && this.book.spine.items.length > 0) {
+              const firstItem = this.book.spine.items[0];
+              console.log("📍 방법1 - 첫 번째 spine 아이템:", firstItem.href);
+              this.rendition.display(firstItem.href);
+              return;
+            }
+            
+            // 방법 2: 인덱스 0
+            console.log("📍 방법2 - 인덱스 0으로 이동");
+            this.rendition.display(0);
+            
+          } catch (error) {
+            console.error("❌ 첫 페이지 이동 오류:", error);
+            
+            // 방법 3: 강제 새로고침
+            setTimeout(() => {
+              const bookUrl = new URLSearchParams(location.search).get("book");
+              if (bookUrl) {
+                console.log("📍 방법3 - 북 재로드");
+                this.rendition.display(bookUrl);
+              }
+            }, 500);
+          }
+        }
+
+        stopAutoSlide() {
+          if (this.autoSlideInterval) {
+            clearInterval(this.autoSlideInterval);
+            this.autoSlideInterval = null;
+          }
+        }
+
+        showControls() {
+          if (this.isFullscreen) {
+            this.header.classList.remove('hidden');
+            clearTimeout(this.hideControlsTimeout);
+            this.hideControlsTimeout = setTimeout(() => {
+              this.hideControls();
+            }, 5000);
+          }
+        }
+
+        hideControls() {
+          if (this.isFullscreen) {
+            this.header.classList.add('hidden');
+          }
+        }
+
+        resetAutoSlideTimer() {
+          if (this.isAutoSlide && this.autoSlideInterval) {
+            console.log("🔄 자동슬라이드 타이머 리셋");
+            clearInterval(this.autoSlideInterval);
+            this.startAutoSlide();
+          }
+        }
+
+        prevPage() {
+          if (this.rendition) {
+            this.rendition.prev();
+            // 수동 조작 시 자동슬라이드 타이머 리셋
+            this.resetAutoSlideTimer();
+          }
+        }
+
+        nextPage() {
+          if (this.rendition) {
+            const beforeLocation = this.rendition.currentLocation();
+            
+            this.rendition.next().then(() => {
+              // 이동 후 위치 확인
+              setTimeout(() => {
+                const afterLocation = this.rendition.currentLocation();
+                
+                // 위치가 변하지 않았으면 마지막 페이지
+                const beforeCfi = beforeLocation && beforeLocation.start ? beforeLocation.start.cfi : null;
+                const afterCfi = afterLocation && afterLocation.start ? afterLocation.start.cfi : null;
+                
+                if (beforeCfi && afterCfi && beforeCfi === afterCfi) {
+                  console.log("📖 수동 - 마지막 페이지 도달, 첫 페이지로 이동");
+                  this.goToFirstPage();
+                }
+              }, 100);
+              
+              // 수동 조작 시 자동슬라이드 타이머 리셋
+              this.resetAutoSlideTimer();
+              
+            }).catch((error) => {
+              console.error("❌ nextPage 오류:", error);
+              this.resetAutoSlideTimer();
+            });
+          }
+        }
+
+        updateProgress() {
+          if (this.currentLocation && this.currentLocation.start) {
+            const progress = this.currentLocation.start.percentage || 0;
+            this.progressBar.style.width = `${progress * 100}%`;
+          }
+        }
+
+        showError(message) {
+          this.msg.style.display = "block";
+          this.msg.textContent = message;
+          console.error("❌", message);
+        }
+      }
+
+      // 뷰어 초기화
+      document.addEventListener('DOMContentLoaded', () => {
+        new EnhancedEpubViewer();
+      });
+    </script>
+  </body>
+</html>
