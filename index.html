@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>EPUB 다운로드 허브</title>
+    <style>
+      :root {
+        --bg: #0f172a;
+        --card: #111827;
+        --card-hover: #1f2937;
+        --muted: #94a3b8;
+        --text: #e2e8f0;
+        --accent: #22c55e;
+        --accent2: #60a5fa;
+        --border: #374151;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 16px;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Helvetica, Arial, sans-serif;
+        line-height: 1.6;
+      }
+
+      .header {
+        text-align: center;
+        margin-bottom: 32px;
+      }
+
+      h1 {
+        font-size: 28px;
+        margin: 0 0 8px 0;
+        font-weight: 700;
+        background: linear-gradient(135deg, var(--accent), var(--accent2));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      h3 {
+        font-size: 18px;
+        margin: 8px 0;
+        color: var(--muted);
+        font-weight: 500;
+      }
+
+      .search-card {
+        background: var(--card);
+        border-radius: 16px;
+        padding: 24px;
+        margin: 24px 0;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        border: 1px solid var(--border);
+      }
+
+      .search-row {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        gap: 16px;
+        align-items: end;
+      }
+
+      .view-mode-section {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid var(--border);
+      }
+
+      .view-mode-buttons {
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+      }
+
+      .view-mode-btn {
+        padding: 10px 20px;
+        background: rgba(96, 165, 250, 0.1);
+        color: var(--accent2);
+        border: 1px solid rgba(96, 165, 250, 0.3);
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+      }
+
+      .view-mode-btn:hover {
+        background: rgba(96, 165, 250, 0.2);
+        border-color: var(--accent2);
+      }
+
+      .view-mode-btn.active {
+        background: var(--accent2);
+        color: #0c4a6e;
+        border-color: var(--accent2);
+      }
+
+      @media (max-width: 768px) {
+        .search-row {
+          grid-template-columns: 1fr;
+          gap: 16px;
+        }
+        
+        .view-mode-buttons {
+          flex-direction: column;
+          gap: 12px;
+        }
+      }
+
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      label {
+        color: var(--muted);
+        font-size: 14px;
+        font-weight: 500;
+      }
+
+      input,
+      select {
+        width: 100%;
+        padding: 12px 16px;
+        background: #0b1220;
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        outline: none;
+        transition: border-color 0.2s ease;
+      }
+
+      input:focus,
+      select:focus {
+        border-color: var(--accent2);
+      }
+
+      .books-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 24px;
+        margin: 32px 0;
+      }
+
+      .book-card {
+        background: var(--card);
+        border-radius: 16px;
+        padding: 20px;
+        border: 1px solid var(--border);
+        transition: all 0.3s ease;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .book-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(
+          135deg,
+          rgba(34, 197, 94, 0.1),
+          rgba(96, 165, 250, 0.1)
+        );
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        z-index: 1;
+        pointer-events: none;
+      }
+
+      .book-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        border-color: var(--accent2);
+      }
+
+      .book-card:hover::before {
+        opacity: 1;
+      }
+
+      .book-cover {
+        width: 100%;
+        height: 200px;
+        background: linear-gradient(135deg, #1f2937, #374151);
+        border-radius: 12px;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+        border: 2px solid var(--border);
+        z-index: 2;
+      }
+
+      .book-cover img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 10px;
+      }
+
+      .book-cover .no-image {
+        color: var(--muted);
+        font-size: 48px;
+        opacity: 0.5;
+      }
+
+      .book-info {
+        z-index: 2;
+        position: relative;
+      }
+
+      .book-title {
+        font-size: 18px;
+        font-weight: 700;
+        margin: 0 0 8px 0;
+        color: var(--text);
+        line-height: 1.3;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      .book-author {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--accent);
+        margin: 0 0 4px 0;
+      }
+
+      .book-org {
+        font-size: 14px;
+        color: var(--muted);
+        margin: 0 0 20px 0;
+      }
+
+      .book-actions {
+        display: flex;
+        gap: 12px;
+        z-index: 2;
+        position: relative;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px 16px;
+        border-radius: 10px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        border: none;
+        cursor: pointer;
+        gap: 6px;
+      }
+
+      .btn-primary {
+        background: var(--accent);
+        color: #052e13;
+        flex: 1;
+      }
+
+      .btn-primary:hover {
+        background: #16a34a;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(34, 197, 94, 0.3);
+      }
+
+      .btn-secondary {
+        background: rgba(96, 165, 250, 0.1);
+        color: var(--accent2);
+        border: 1px solid rgba(96, 165, 250, 0.3);
+        flex: 1;
+      }
+
+      .btn-secondary:hover {
+        background: rgba(96, 165, 250, 0.2);
+        border-color: var(--accent2);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(96, 165, 250, 0.2);
+      }
+
+      .no-results {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--muted);
+        font-size: 18px;
+      }
+
+      .no-results-icon {
+        font-size: 64px;
+        margin-bottom: 16px;
+        opacity: 0.5;
+      }
+
+      .author-section {
+        margin: 40px 0 24px 0;
+      }
+
+      .author-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 20px;
+        padding: 16px 0;
+        border-bottom: 2px solid var(--border);
+      }
+
+      .author-name {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--text);
+        margin: 0;
+      }
+
+      .author-count {
+        background: var(--accent);
+        color: #052e13;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .footer {
+        text-align: center;
+        color: var(--muted);
+        margin-top: 60px;
+        padding-top: 40px;
+        border-top: 1px solid var(--border);
+        font-size: 14px;
+      }
+
+      @media (max-width: 1200px) {
+        .books-grid {
+          grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+          gap: 20px;
+        }
+      }
+
+      @media (max-width: 768px) {
+        body {
+          padding: 12px;
+        }
+
+        .books-grid {
+          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+          gap: 16px;
+        }
+
+        .search-card {
+          padding: 20px;
+        }
+
+        h1 {
+          font-size: 24px;
+        }
+
+        .author-name {
+          font-size: 20px;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .books-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .book-actions {
+          flex-direction: column;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h1>2025 서울동행인문학</h1>
+      <h1>
+        (한사람을 위한 미술인문학) 개인을 넘어 우리 : AI를 활용한 글과 그림책
+        수업
+      </h1>
+      <h3>📚 전자책(EPUB) 다운로드 허브</h3>
+      <h3>📚 전자책 다운로드는 2025년 10월 10일까지 가능합니다.</h3>
+    </div>
+
+    <div class="search-card">
+      <div class="search-row">
+        <div class="form-group">
+          <label for="lecturerSelect">작가 선택</label>
+          <select id="lecturerSelect"></select>
+        </div>
+        <div class="form-group">
+          <label for="searchInput">검색 (작품명/소속/작가명)</label>
+          <input id="searchInput" type="search" placeholder="예) 윤동주" />
+        </div>
+      </div>
+      
+      <div class="view-mode-section">
+        <div class="view-mode-buttons">
+          <button id="authorView" class="view-mode-btn active">📚 작가별 보기</button>
+          <button id="gridView" class="view-mode-btn">🔲 전체 보기</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="listArea"></div>
+
+    <div class="footer">서대문구 평생학습관 융복합 인재교육센터</div>
+
+    <script>
+      // 뷰 모드 전역 변수
+      let currentViewMode = 'author'; // 'author' 또는 'grid'
+
+      const DATASET = [
+        {
+          소속: "서대문구 평생학습관",
+          작가명: "구희진",
+          작품명: "Stage in the FOREST 숲속 무대",
+          파일링크: "epub/구희진작가_f.epub",
+          표지: "resources/구희진작가_f.jpg",
+        },
+        {
+          소속: "서대문구 평생학습관",
+          작가명: "김미연",
+          작품명: "희망안에서",
+          파일링크: "epub/김미연작가_f.epub",
+          표지: "resources/김미연작가_f.jpg",
+        },
+        {
+          소속: "서대문구 평생학습관",
+          작가명: "김은진",
+          작품명: "꽃은, 다시 핀다",
+          파일링크: "epub/김은진작가_f.epub",
+          표지: "resources/김은진작가_f.jpg",
+        },
+        {
+          소속: "서대문구 평생학습관",
+          작가명: "김조세린",
+          작품명: "오늘의 나를 만든 어제의 숨결",
+          파일링크: "epub/김조세린작가_f.epub",
+          표지: "resources/김조세린작가_f.jpg",
+        },
+        {
+          소속: "서대문구 평생학습관",
+          작가명: "박진경",
+          작품명: "고통을 넘어 희망으로",
+          파일링크: "epub/박진경작가_f.epub",
+          표지: "resources/박진경작가_f.jpg",
+        },
+        {
+          소속: "서대문구 평생학습관",
+          작가명: "오진경",
+          작품명: "스쳐간 순간들이 모여 내 안에 길을 놓았다",
+          파일링크: "epub/오진경작가_f.epub",
+          표지: "resources/오진경작가_f.jpg",
+        },
+        {
+          소속: "서대문구 평생학습관",
+          작가명: "이선화",
+          작품명: "달팽이의 아침.저녁 그리고.지금",
+          파일링크: "epub/이선화작가_f.epub",
+          표지: "resources/이선화작가_f.jpg",
+        },
+        {
+          소속: "서대문구 평생학습관",
+          작가명: "이재홍",
+          작품명: "허우적거리며 배우다",
+          파일링크: "epub/이재홍작가_f.epub",
+          표지: "resources/이재홍작가_f.jpg",
+        },
+        {
+          소속: "서대문구 평생학습관",
+          작가명: "이정은",
+          작품명: "삶을 잇는 작은 실",
+          파일링크: "epub/이정은작가_f.epub",
+          표지: "resources/이정은작가_f.jpg",
+        },
+        {
+          소속: "서대문구 평생학습관",
+          작가명: "장영숙",
+          작품명: "괜찮아, 오늘도... 괜찮아, 내일도...",
+          파일링크: "epub/장영숙작가_f.epub",
+          표지: "resources/장영숙작가_f.jpg",
+        },
+        {
+          소속: "서대문구 평생학습관",
+          작가명: "정연경",
+          작품명: "60+ 삶을 향한 깊은 뿌리와 새로운 가치",
+          파일링크: "epub/정연경작가_f.epub",
+          표지: "resources/정연경작가_f.jpg",
+        },
+        {
+          소속: "서대문구 평생학습관",
+          작가명: "정혜욱",
+          작품명: "삶은 여행이고, 나는 여전히 길위에 있다.",
+          파일링크: "epub/정혜욱작가_f.epub",
+          표지: "resources/정혜욱작가_f.jpg",
+        },
+        {
+          소속: "서대문구 평생학습관",
+          작가명: "조미영",
+          작품명: "숨빛 Breathing light",
+          파일링크: "epub/조미영작가_f.epub",
+          표지: "resources/조미영작가_f.jpg",
+        },
+        {
+          소속: "서대문구 평생학습관",
+          작가명: "한미화",
+          작품명: "삶 속에서 보석을 발견하며",
+          파일링크: "epub/한미화작가_f.epub",
+          표지: "resources/한미화작가_f.jpg",
+        },
+      ];
+
+      function getLecturers() {
+        const set = new Set(DATASET.map((x) => x["작가명"]));
+        return ["(전체)"].concat([...set].sort());
+      }
+
+      function renderLecturerOptions() {
+        const sel = document.getElementById("lecturerSelect");
+        sel.innerHTML = "";
+        getLecturers().forEach((name) => {
+          const opt = document.createElement("option");
+          opt.value = name;
+          opt.textContent = name;
+          sel.appendChild(opt);
+        });
+        const q = new URLSearchParams(location.search).get("lecturer");
+        if (q) sel.value = q;
+      }
+
+      function createBookCard(item) {
+        const title = escapeHtml(item["작품명"] || "");
+        const author = escapeHtml(item["작가명"] || "");
+        const org = escapeHtml(item["소속"] || "");
+        const coverImage = item["표지"] || "";
+        const raw = (item["파일링크"] || "").trim();
+
+        const card = document.createElement("div");
+        card.className = "book-card";
+
+        let coverHtml = "";
+        if (coverImage) {
+          coverHtml = `<img src="${coverImage}" alt="${title}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                       <div class="no-image" style="display:none;">📖</div>`;
+        } else {
+          coverHtml = '<div class="no-image">📖</div>';
+        }
+
+        card.innerHTML = `
+          <div class="book-cover">
+            ${coverHtml}
+          </div>
+          <div class="book-info">
+            <div class="book-author">✍️ ${author}</div>
+            <h3 class="book-title">${title}</h3>
+            <div class="book-org">🏛️ ${org}</div>
+            <div class="book-actions">
+              <a href="${raw}" class="btn btn-primary" target="_blank" rel="noopener">
+                📥 다운로드
+              </a>
+              <a href="#" class="btn btn-secondary preview-btn" data-book="${encodeURIComponent(raw)}">
+                👁️ 미리보기
+              </a>
+            </div>
+          </div>
+        `;
+
+        return card;
+      }
+
+      function renderList() {
+        const area = document.getElementById("listArea");
+        const lecturer = document.getElementById("lecturerSelect").value;
+        const q = document.getElementById("searchInput").value.trim().toLowerCase();
+
+        let arr = DATASET.slice();
+        if (lecturer && lecturer !== "(전체)") {
+          arr = arr.filter((x) => x["작가명"] === lecturer);
+        }
+        if (q) {
+          arr = arr.filter(
+            (x) =>
+              (x["작품명"] || "").toLowerCase().includes(q) ||
+              (x["소속"] || "").toLowerCase().includes(q) ||
+              (x["작가명"] || "").toLowerCase().includes(q)
+          );
+        }
+
+        area.innerHTML = "";
+
+        if (arr.length === 0) {
+          area.innerHTML = `
+            <div class="no-results">
+              <div class="no-results-icon">📚</div>
+              <div>검색 결과가 없습니다.</div>
+            </div>
+          `;
+          return;
+        }
+
+        if (currentViewMode === 'grid') {
+          // 전체 보기: 작가 헤더 없이 단일 그리드
+          const booksGrid = document.createElement("div");
+          booksGrid.className = "books-grid";
+
+          // 작가명순 정렬
+          const sortedBooks = arr.sort((a, b) => {
+            const authorA = a["작가명"] || "";
+            const authorB = b["작가명"] || "";
+            if (authorA === authorB) {
+              return (a["작품명"] || "").localeCompare(b["작품명"] || "");
+            }
+            return authorA.localeCompare(authorB);
+          });
+
+          sortedBooks.forEach((book) => {
+            const card = createBookCard(book);
+            booksGrid.appendChild(card);
+          });
+
+          area.appendChild(booksGrid);
+
+        } else {
+          // 작가별 보기: 작가별 그룹화
+          const byAuthor = arr.reduce((acc, cur) => {
+            const key = cur["작가명"] || "미지정";
+            (acc[key] ||= []).push(cur);
+            return acc;
+          }, {});
+
+          Object.keys(byAuthor).sort().forEach((author) => {
+            const books = byAuthor[author];
+
+            const authorSection = document.createElement("div");
+            authorSection.className = "author-section";
+
+            const authorHeader = document.createElement("div");
+            authorHeader.className = "author-header";
+            authorHeader.innerHTML = `
+              <h2 class="author-name">✍️ ${escapeHtml(author)}</h2>
+              <span class="author-count">${books.length}권</span>
+            `;
+            authorSection.appendChild(authorHeader);
+
+            const booksGrid = document.createElement("div");
+            booksGrid.className = "books-grid";
+
+            books.forEach((book) => {
+              const card = createBookCard(book);
+              booksGrid.appendChild(card);
+            });
+
+            authorSection.appendChild(booksGrid);
+            area.appendChild(authorSection);
+          });
+        }
+
+        setupPreviewButtons();
+      }
+
+      function setupPreviewButtons() {
+        const previewBtns = document.querySelectorAll(".preview-btn");
+        previewBtns.forEach((btn) => {
+          btn.addEventListener("click", (e) => {
+            e.preventDefault();
+            const bookParam = btn.getAttribute("data-book");
+            const decodedBook = decodeURIComponent(bookParam);
+
+            let relative = decodedBook.replace(/^\//, "");
+            const repoName = location.pathname.split("/")[1];
+            if (relative.startsWith(repoName + "/")) {
+              relative = relative.substring(repoName.length + 1);
+            }
+
+            const viewerUrl = "viewer.html?book=" + encodeURIComponent(relative);
+            window.open(viewerUrl, "_blank", "noopener");
+          });
+        });
+      }
+
+      function escapeHtml(s) {
+        return String(s)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+
+      // 초기화
+      document.addEventListener('DOMContentLoaded', function() {
+        renderLecturerOptions();
+        renderList();
+
+        // 이벤트 리스너
+        document.getElementById("lecturerSelect").addEventListener("change", renderList);
+        document.getElementById("searchInput").addEventListener("input", renderList);
+
+        // 뷰 모드 버튼 이벤트
+        document.getElementById("authorView").addEventListener("click", function() {
+          currentViewMode = 'author';
+          document.getElementById("authorView").classList.add('active');
+          document.getElementById("gridView").classList.remove('active');
+          renderList();
+        });
+
+        document.getElementById("gridView").addEventListener("click", function() {
+          currentViewMode = 'grid';
+          document.getElementById("gridView").classList.add('active');
+          document.getElementById("authorView").classList.remove('active');
+          renderList();
+        });
+      });
+    </script>
+  </body>
+</html>
