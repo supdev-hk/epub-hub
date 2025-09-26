@@ -6,7 +6,6 @@
       name="viewport"
       content="width=device-width, initial-scale=1, user-scalable=no"
     />
-    <!-- PWA 메타 태그들 -->
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta
@@ -23,6 +22,7 @@
         --text: #e2e8f0;
         --accent: #22c55e;
         --accent2: #60a5fa;
+        --pdf-color: #f59e0b;
       }
 
       * {
@@ -119,6 +119,16 @@
       .btn.secondary:hover {
         background: #1f2937;
         box-shadow: 0 4px 12px rgba(31, 41, 55, 0.3);
+      }
+
+      .btn.pdf {
+        background: var(--pdf-color);
+        color: #451a03;
+      }
+
+      .btn.pdf:hover {
+        background: #d97706;
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
       }
 
       .btn.active {
@@ -416,7 +426,7 @@
           </button>
           <button id="fullscreenBtn" class="btn secondary">🔍 전체화면</button>
           <button id="autoSlideBtn" class="btn secondary">
-            ⏯️ 자동슬라이드
+            ▶️ 자동슬라이드
           </button>
           <div class="speed-control">
             <span>속도:</span>
@@ -444,7 +454,16 @@
             style="text-decoration: none"
             download
           >
-            📥 다운로드
+            📥 EPUB 다운로드
+          </a>
+          <a
+            id="pdfDownload"
+            class="btn pdf"
+            href="#"
+            style="text-decoration: none; display: none"
+            download
+          >
+            📄 PDF 다운로드
           </a>
         </div>
       </div>
@@ -467,12 +486,119 @@
     <div class="fullscreen-trigger-zone" id="fullscreenTriggerZone"></div>
     <div class="fullscreen-mouse-detector" id="fullscreenMouseDetector"></div>
 
-    <!-- jszip (epub.js 필수) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js"></script>
-    <!-- epub.js -->
     <script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.88/dist/epub.min.js"></script>
 
     <script>
+      const DATASET = [
+        {
+          소속: "서대문구 평생학습관",
+          작가명: "구포진",
+          작품명: "Stage in the FOREST 숲속 무대",
+          파일링크: "epub/구포진작가_f.epub",
+          표지: "resources/구포진작가_f.jpg",
+        },
+        {
+          소속: "서대문구 평생학습관",
+          작가명: "김미연",
+          작품명: "희망안에서",
+          파일링크: "epub/김미연작가_f.epub",
+          표지: "resources/김미연작가_f.jpg",
+        },
+        {
+          소속: "서대문구 평생학습관",
+          작가명: "김은진",
+          작품명: "꽃은, 다시 핀다",
+          파일링크: "epub/김은진작가_f.epub",
+          표지: "resources/김은진작가_f.jpg",
+        },
+        {
+          소속: "서대문구 평생학습관",
+          작가명: "김조세린",
+          작품명: "오늘의 나를 만든 어제의 숨결",
+          파일링크: "epub/김조세린작가_f.epub",
+          표지: "resources/김조세린작가_f.jpg",
+        },
+        {
+          소속: "서대문구 평생학습관",
+          작가명: "박진경",
+          작품명: "고통을 넘어 희망으로",
+          파일링크: "epub/박진경작가_f.epub",
+          표지: "resources/박진경작가_f.jpg",
+        },
+        {
+          소속: "서대문구 평생학습관",
+          작가명: "오진경",
+          작품명: "스쳐간 순간들이 모여 내 안에 길을 놓았다",
+          파일링크: "epub/오진경작가_f.epub",
+          표지: "resources/오진경작가_f.jpg",
+        },
+        {
+          소속: "서대문구 평생학습관",
+          작가명: "이선화",
+          작품명: "달팽이의 아침.저녁 그리고.지금",
+          파일링크: "epub/이선화작가_f.epub",
+          표지: "resources/이선화작가_f.jpg",
+          pdf: "resources/이선화작가_f.pdf",
+        },
+        {
+          소속: "서대문구 평생학습관",
+          작가명: "이재홍",
+          작품명: "허우적거리며 배우다",
+          파일링크: "epub/이재홍작가_f.epub",
+          표지: "resources/이재홍작가_f.jpg",
+          pdf: "resources/이재홍작가_f.pdf",
+        },
+        {
+          소속: "서대문구 평생학습관",
+          작가명: "이정은",
+          작품명: "삶을 잇는 작은 실",
+          파일링크: "epub/이정은작가_f.epub",
+          표지: "resources/이정은작가_f.jpg",
+          pdf: "resources/이정은작가_f.pdf",
+        },
+        {
+          소속: "서대문구 평생학습관",
+          작가명: "장영숙",
+          작품명: "괜찮아, 오늘도... 괜찮아, 내일도...",
+          파일링크: "epub/장영숙작가_f.epub",
+          표지: "resources/장영숙작가_f.jpg",
+          pdf: "resources/장영숙작가_f.pdf",
+        },
+        {
+          소속: "서대문구 평생학습관",
+          작가명: "정연경",
+          작품명: "60+ 삶을 향한 깊은 뿌리와 새로운 가치",
+          파일링크: "epub/정연경작가_f.epub",
+          표지: "resources/정연경작가_f.jpg",
+          pdf: "resources/정연경작가_f.pdf",
+        },
+        {
+          소속: "서대문구 평생학습관",
+          작가명: "정혜욱",
+          작품명: "삶은 여행이고, 나는 여전히 길위에 있다.",
+          파일링크: "epub/정혜욱작가_f.epub",
+          표지: "resources/정혜욱작가_f.jpg",
+          pdf: "resources/정혜욱작가_f.pdf",
+        },
+        {
+          소속: "서대문구 평생학습관",
+          작가명: "조미영",
+          작품명: "숨빛 Breathing light",
+          파일링크: "epub/조미영작가_f.epub",
+          표지: "resources/조미영작가_f.jpg",
+          pdf: "resources/조미영작가_f.pdf",
+        },
+        {
+          소속: "서대문구 평생학습관",
+          작가명: "한미화",
+          작품명: "삶 속에서 보석을 발견하며",
+          파일링크: "epub/한미화작가_f.epub",
+          표지: "resources/한미화작가_f.jpg",
+          pdf: "resources/한미화작가_f.pdf",
+        },
+      ];
+
       class EnhancedEpubViewer {
         constructor() {
           this.book = null;
@@ -486,7 +612,6 @@
           this.currentPage = 0;
           this.hideControlsTimeout = null;
 
-          // 터치/드래그 관련 변수
           this.isDragging = false;
           this.hasMoved = false;
           this.startX = 0;
@@ -515,6 +640,7 @@
           this.nextBtn = document.getElementById("next");
           this.tocSel = document.getElementById("toc");
           this.downloadA = document.getElementById("download");
+          this.pdfDownloadA = document.getElementById("pdfDownload");
           this.meta = document.getElementById("meta");
           this.msg = document.getElementById("msg");
           this.autoSlideIndicator =
@@ -534,7 +660,6 @@
             "swipeIndicatorRight"
           );
 
-          // 드래그 오버레이를 동적으로 생성
           this.createDragOverlay();
         }
 
@@ -563,6 +688,25 @@
 
           this.downloadA.href = bookUrl;
 
+          // PDF 다운로드 버튼 표시 확인
+          console.log("🔍 PDF 검색 중... bookUrl:", bookUrl);
+
+          const currentBook = DATASET.find((item) => {
+            const epubPath = item.파일링크.replace(/^\//, "");
+            console.log("비교:", bookUrl, "vs", epubPath);
+            return bookUrl.includes(epubPath) || epubPath.includes(bookUrl);
+          });
+
+          console.log("📚 찾은 책:", currentBook);
+
+          if (currentBook && currentBook.pdf) {
+            this.pdfDownloadA.href = currentBook.pdf;
+            this.pdfDownloadA.style.display = "inline-flex";
+            console.log("✅ PDF 다운로드 버튼 활성화:", currentBook.pdf);
+          } else {
+            console.log("❌ PDF 없음 또는 책을 찾을 수 없음");
+          }
+
           try {
             console.log("📌 ePub 초기화 시도:", bookUrl);
             this.book = ePub(bookUrl);
@@ -580,7 +724,6 @@
               this.initMetadata();
               this.updateProgress();
 
-              // epub 로딩 완료 후 드래그 오버레이 활성화
               setTimeout(() => {
                 this.activateDragOverlay();
               }, 1000);
@@ -642,7 +785,7 @@
             if (m.title) bits.push(m.title);
             if (m.creator) bits.push(m.creator);
             if (m.publisher) bits.push(m.publisher);
-            if (bits.length) {
+            if (bits.length && this.meta) {
               this.meta.textContent = "📖 " + bits.join(" · ");
             }
           });
@@ -737,7 +880,6 @@
         bindTouchEvents() {
           console.log("🖱️ 터치 이벤트 바인딩 시작");
 
-          // 드래그 이벤트만 바인딩
           this.dragOverlay.addEventListener(
             "mousedown",
             this.handleStart.bind(this)
@@ -754,7 +896,6 @@
         handleStart(e) {
           console.log("🖱️ 드래그 시작!");
 
-          // 클릭인지 드래그인지 구분하기 위한 플래그
           this.isDragging = false;
           this.hasMoved = false;
 
@@ -766,7 +907,6 @@
 
           this.viewerContainer.classList.add("dragging");
 
-          // 전역 이벤트 리스너 추가
           const moveHandler = this.handleMove.bind(this);
           const endHandler = this.handleEnd.bind(this);
 
@@ -777,7 +917,6 @@
           });
           document.addEventListener("touchend", endHandler);
 
-          // 이벤트 제거를 위해 핸들러 저장
           this.moveHandler = moveHandler;
           this.endHandler = endHandler;
 
@@ -786,7 +925,6 @@
 
         handleMove(e) {
           if (this.hasMoved === false) {
-            // 첫 번째 움직임에서 드래그 시작으로 판단
             this.isDragging = true;
             this.hasMoved = true;
             console.log("🖱️ 드래그 모드 시작");
@@ -803,26 +941,21 @@
           const deltaX = this.currentX - this.startX;
           const deltaY = Math.abs(this.currentY - this.startY);
 
-          // 세로 스크롤이 더 크면 드래그 취소
           if (deltaY > Math.abs(deltaX) * 2 && deltaY > 30) {
             console.log("🚫 세로 스크롤 감지, 드래그 취소");
             this.cancelDrag();
             return;
           }
 
-          // 최소 드래그 거리 이상일 때만 시각적 피드백
           if (Math.abs(deltaX) > 20) {
             if (deltaX > 0) {
-              // 오른쪽으로 드래그 (이전 페이지)
               this.swipeIndicatorLeft.classList.add("active");
               this.swipeIndicatorRight.classList.remove("active");
             } else {
-              // 왼쪽으로 드래그 (다음 페이지)
               this.swipeIndicatorRight.classList.add("active");
               this.swipeIndicatorLeft.classList.remove("active");
             }
 
-            // 드래그에 따른 시각적 효과
             const transform = `translateX(${deltaX * 0.1}px)`;
             this.viewerContainer.style.transform = transform;
           }
@@ -831,14 +964,12 @@
         }
 
         handleEnd(e) {
-          // 전역 이벤트 리스너 제거
           document.removeEventListener("mousemove", this.moveHandler);
           document.removeEventListener("mouseup", this.endHandler);
           document.removeEventListener("touchmove", this.moveHandler);
           document.removeEventListener("touchend", this.endHandler);
 
           if (!this.isDragging) {
-            // 단순 클릭인 경우
             console.log("👆 단순 클릭 감지");
             this.resetDragState();
             return;
@@ -854,7 +985,6 @@
             가로우선: Math.abs(deltaX) > deltaY,
           });
 
-          // 드래그 거리가 충분하고 가로 방향이면 페이지 이동
           if (
             Math.abs(deltaX) > this.dragThreshold &&
             Math.abs(deltaX) > deltaY
@@ -879,7 +1009,6 @@
           console.log("🚫 드래그 취소 (세로 스크롤 감지)");
           this.resetDragState();
 
-          // 전역 이벤트 리스너도 제거
           document.removeEventListener("mousemove", this.moveHandler);
           document.removeEventListener("mouseup", this.endHandler);
           document.removeEventListener("touchmove", this.moveHandler);
@@ -1056,7 +1185,7 @@
             this.autoSlideIndicator.classList.add("active");
           } else {
             this.stopAutoSlide();
-            this.autoSlideBtn.textContent = "⏯️ 자동슬라이드";
+            this.autoSlideBtn.textContent = "▶️ 자동슬라이드";
             this.autoSlideBtn.classList.remove("active");
             this.autoSlideIndicator.classList.remove("active");
           }
@@ -1094,7 +1223,7 @@
                       ? afterLocation.start.cfi
                       : null;
 
-                  console.log("🔍 CFI 비교:", {
+                  console.log("📍 CFI 비교:", {
                     before: beforeCfi,
                     after: afterCfi,
                   });
@@ -1242,7 +1371,6 @@
         }
       }
 
-      // 뷰어 초기화
       document.addEventListener("DOMContentLoaded", () => {
         new EnhancedEpubViewer();
       });
