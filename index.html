@@ -14,6 +14,7 @@
         --accent: #22c55e;
         --accent2: #60a5fa;
         --border: #374151;
+        --pdf-color: #f59e0b;
       }
 
       * {
@@ -103,12 +104,40 @@
         border-color: var(--accent2);
       }
 
+      .pdf-download-section {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid var(--border);
+        text-align: center;
+      }
+
+      .pdf-download-all-btn {
+        padding: 12px 24px;
+        background: var(--pdf-color);
+        color: #451a03;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .pdf-download-all-btn:hover {
+        background: #d97706;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(245, 158, 11, 0.3);
+      }
+
       @media (max-width: 768px) {
         .search-row {
           grid-template-columns: 1fr;
           gap: 16px;
         }
-        
+
         .view-mode-buttons {
           flex-direction: column;
           gap: 12px;
@@ -250,6 +279,7 @@
 
       .book-actions {
         display: flex;
+        flex-direction: column;
         gap: 12px;
         z-index: 2;
         position: relative;
@@ -294,6 +324,18 @@
         border-color: var(--accent2);
         transform: translateY(-2px);
         box-shadow: 0 8px 20px rgba(96, 165, 250, 0.2);
+      }
+
+      .btn-pdf {
+        background: var(--pdf-color);
+        color: #451a03;
+        flex: 1;
+      }
+
+      .btn-pdf:hover {
+        background: #d97706;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(245, 158, 11, 0.3);
       }
 
       .no-results {
@@ -381,10 +423,6 @@
         .books-grid {
           grid-template-columns: 1fr;
         }
-
-        .book-actions {
-          flex-direction: column;
-        }
       }
     </style>
   </head>
@@ -410,12 +448,20 @@
           <input id="searchInput" type="search" placeholder="예) 윤동주" />
         </div>
       </div>
-      
+
       <div class="view-mode-section">
         <div class="view-mode-buttons">
-          <button id="authorView" class="view-mode-btn active">📚 작가별 보기</button>
-          <button id="gridView" class="view-mode-btn">🔲 전체 보기</button>
+          <button id="authorView" class="view-mode-btn active">
+            📚 작가별 보기
+          </button>
+          <button id="gridView" class="view-mode-btn">📲 전체 보기</button>
         </div>
+      </div>
+
+      <div class="pdf-download-section">
+        <button id="downloadAllPdf" class="pdf-download-all-btn">
+          📄 전체 PDF 한번에 다운로드
+        </button>
       </div>
     </div>
 
@@ -423,9 +469,9 @@
 
     <div class="footer">서대문구 평생학습관 융복합 인재교육센터</div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script>
-      // 뷰 모드 전역 변수
-      let currentViewMode = 'author'; // 'author' 또는 'grid'
+      let currentViewMode = "author";
 
       const DATASET = [
         {
@@ -434,6 +480,7 @@
           작품명: "Stage in the FOREST 숲속 무대",
           파일링크: "epub/구희진작가_f.epub",
           표지: "resources/구희진작가_f.jpg",
+          pdf: "resources/구희진작가_f.pdf",
         },
         {
           소속: "서대문구 평생학습관",
@@ -441,6 +488,7 @@
           작품명: "희망안에서",
           파일링크: "epub/김미연작가_f.epub",
           표지: "resources/김미연작가_f.jpg",
+          pdf: "resources/김미연작가_f.pdf",
         },
         {
           소속: "서대문구 평생학습관",
@@ -448,6 +496,7 @@
           작품명: "꽃은, 다시 핀다",
           파일링크: "epub/김은진작가_f.epub",
           표지: "resources/김은진작가_f.jpg",
+          pdf: "resources/김은진작가_f.pdf",
         },
         {
           소속: "서대문구 평생학습관",
@@ -455,6 +504,7 @@
           작품명: "오늘의 나를 만든 어제의 숨결",
           파일링크: "epub/김조세린작가_f.epub",
           표지: "resources/김조세린작가_f.jpg",
+          pdf: "resources/김조세린작가_f.pdf",
         },
         {
           소속: "서대문구 평생학습관",
@@ -462,6 +512,7 @@
           작품명: "고통을 넘어 희망으로",
           파일링크: "epub/박진경작가_f.epub",
           표지: "resources/박진경작가_f.jpg",
+          pdf: "resources/박진경작가_f.pdf",
         },
         {
           소속: "서대문구 평생학습관",
@@ -469,6 +520,7 @@
           작품명: "스쳐간 순간들이 모여 내 안에 길을 놓았다",
           파일링크: "epub/오진경작가_f.epub",
           표지: "resources/오진경작가_f.jpg",
+          pdf: "resources/오진경작가_f.pdf",
         },
         {
           소속: "서대문구 평생학습관",
@@ -476,6 +528,7 @@
           작품명: "달팽이의 아침.저녁 그리고.지금",
           파일링크: "epub/이선화작가_f.epub",
           표지: "resources/이선화작가_f.jpg",
+          pdf: "resources/이선화작가_f.pdf",
         },
         {
           소속: "서대문구 평생학습관",
@@ -483,6 +536,7 @@
           작품명: "허우적거리며 배우다",
           파일링크: "epub/이재홍작가_f.epub",
           표지: "resources/이재홍작가_f.jpg",
+          pdf: "resources/이재홍작가_f.pdf",
         },
         {
           소속: "서대문구 평생학습관",
@@ -490,6 +544,7 @@
           작품명: "삶을 잇는 작은 실",
           파일링크: "epub/이정은작가_f.epub",
           표지: "resources/이정은작가_f.jpg",
+          pdf: "resources/이정은작가_f.pdf",
         },
         {
           소속: "서대문구 평생학습관",
@@ -497,6 +552,7 @@
           작품명: "괜찮아, 오늘도... 괜찮아, 내일도...",
           파일링크: "epub/장영숙작가_f.epub",
           표지: "resources/장영숙작가_f.jpg",
+          pdf: "resources/장영숙작가_f.pdf",
         },
         {
           소속: "서대문구 평생학습관",
@@ -504,6 +560,7 @@
           작품명: "60+ 삶을 향한 깊은 뿌리와 새로운 가치",
           파일링크: "epub/정연경작가_f.epub",
           표지: "resources/정연경작가_f.jpg",
+          pdf: "resources/정연경작가_f.pdf",
         },
         {
           소속: "서대문구 평생학습관",
@@ -511,6 +568,7 @@
           작품명: "삶은 여행이고, 나는 여전히 길위에 있다.",
           파일링크: "epub/정혜욱작가_f.epub",
           표지: "resources/정혜욱작가_f.jpg",
+          pdf: "resources/정혜욱작가_f.pdf",
         },
         {
           소속: "서대문구 평생학습관",
@@ -518,6 +576,7 @@
           작품명: "숨빛 Breathing light",
           파일링크: "epub/조미영작가_f.epub",
           표지: "resources/조미영작가_f.jpg",
+          pdf: "resources/조미영작가_f.pdf",
         },
         {
           소속: "서대문구 평생학습관",
@@ -525,6 +584,7 @@
           작품명: "삶 속에서 보석을 발견하며",
           파일링크: "epub/한미화작가_f.epub",
           표지: "resources/한미화작가_f.jpg",
+          pdf: "resources/한미화작가_f.pdf",
         },
       ];
 
@@ -552,6 +612,7 @@
         const org = escapeHtml(item["소속"] || "");
         const coverImage = item["표지"] || "";
         const raw = (item["파일링크"] || "").trim();
+        const pdfLink = item["pdf"] || "";
 
         const card = document.createElement("div");
         card.className = "book-card";
@@ -564,21 +625,31 @@
           coverHtml = '<div class="no-image">📖</div>';
         }
 
+        let pdfButtonHtml = "";
+        if (pdfLink) {
+          pdfButtonHtml = `<a href="${pdfLink}" class="btn btn-pdf" target="_blank" rel="noopener" download>
+            📄 PDF 다운로드
+          </a>`;
+        }
+
         card.innerHTML = `
           <div class="book-cover">
             ${coverHtml}
           </div>
           <div class="book-info">
-            <div class="book-author">✍️ ${author}</div>
+            <div class="book-author">✏️ ${author}</div>
             <h3 class="book-title">${title}</h3>
             <div class="book-org">🏛️ ${org}</div>
             <div class="book-actions">
               <a href="${raw}" class="btn btn-primary" target="_blank" rel="noopener">
-                📥 다운로드
+                📥 EPUB 다운로드
               </a>
-              <a href="#" class="btn btn-secondary preview-btn" data-book="${encodeURIComponent(raw)}">
+              <a href="#" class="btn btn-secondary preview-btn" data-book="${encodeURIComponent(
+                raw
+              )}">
                 👁️ 미리보기
               </a>
+              ${pdfButtonHtml}
             </div>
           </div>
         `;
@@ -589,7 +660,10 @@
       function renderList() {
         const area = document.getElementById("listArea");
         const lecturer = document.getElementById("lecturerSelect").value;
-        const q = document.getElementById("searchInput").value.trim().toLowerCase();
+        const q = document
+          .getElementById("searchInput")
+          .value.trim()
+          .toLowerCase();
 
         let arr = DATASET.slice();
         if (lecturer && lecturer !== "(전체)") {
@@ -616,12 +690,10 @@
           return;
         }
 
-        if (currentViewMode === 'grid') {
-          // 전체 보기: 작가 헤더 없이 단일 그리드
+        if (currentViewMode === "grid") {
           const booksGrid = document.createElement("div");
           booksGrid.className = "books-grid";
 
-          // 작가명순 정렬
           const sortedBooks = arr.sort((a, b) => {
             const authorA = a["작가명"] || "";
             const authorB = b["작가명"] || "";
@@ -637,40 +709,40 @@
           });
 
           area.appendChild(booksGrid);
-
         } else {
-          // 작가별 보기: 작가별 그룹화
           const byAuthor = arr.reduce((acc, cur) => {
             const key = cur["작가명"] || "미지정";
             (acc[key] ||= []).push(cur);
             return acc;
           }, {});
 
-          Object.keys(byAuthor).sort().forEach((author) => {
-            const books = byAuthor[author];
+          Object.keys(byAuthor)
+            .sort()
+            .forEach((author) => {
+              const books = byAuthor[author];
 
-            const authorSection = document.createElement("div");
-            authorSection.className = "author-section";
+              const authorSection = document.createElement("div");
+              authorSection.className = "author-section";
 
-            const authorHeader = document.createElement("div");
-            authorHeader.className = "author-header";
-            authorHeader.innerHTML = `
-              <h2 class="author-name">✍️ ${escapeHtml(author)}</h2>
+              const authorHeader = document.createElement("div");
+              authorHeader.className = "author-header";
+              authorHeader.innerHTML = `
+              <h2 class="author-name">✏️ ${escapeHtml(author)}</h2>
               <span class="author-count">${books.length}권</span>
             `;
-            authorSection.appendChild(authorHeader);
+              authorSection.appendChild(authorHeader);
 
-            const booksGrid = document.createElement("div");
-            booksGrid.className = "books-grid";
+              const booksGrid = document.createElement("div");
+              booksGrid.className = "books-grid";
 
-            books.forEach((book) => {
-              const card = createBookCard(book);
-              booksGrid.appendChild(card);
+              books.forEach((book) => {
+                const card = createBookCard(book);
+                booksGrid.appendChild(card);
+              });
+
+              authorSection.appendChild(booksGrid);
+              area.appendChild(authorSection);
             });
-
-            authorSection.appendChild(booksGrid);
-            area.appendChild(authorSection);
-          });
         }
 
         setupPreviewButtons();
@@ -690,10 +762,69 @@
               relative = relative.substring(repoName.length + 1);
             }
 
-            const viewerUrl = "viewer.html?book=" + encodeURIComponent(relative);
+            const viewerUrl =
+              "viewer.html?book=" + encodeURIComponent(relative);
             window.open(viewerUrl, "_blank", "noopener");
           });
         });
+      }
+
+      async function downloadAllPdf() {
+        const pdfBooks = DATASET.filter((book) => book.pdf);
+
+        if (pdfBooks.length === 0) {
+          alert("다운로드 가능한 PDF 파일이 없습니다.");
+          return;
+        }
+
+        const downloadBtn = document.getElementById("downloadAllPdf");
+        const originalText = downloadBtn.textContent;
+
+        try {
+          downloadBtn.textContent = "📦 ZIP 파일 생성 중...";
+          downloadBtn.disabled = true;
+
+          const zip = new JSZip();
+
+          // 모든 PDF 파일을 fetch하여 ZIP에 추가
+          for (let i = 0; i < pdfBooks.length; i++) {
+            const book = pdfBooks[i];
+            downloadBtn.textContent = `📦 처리 중... (${i + 1}/${
+              pdfBooks.length
+            })`;
+
+            try {
+              const response = await fetch(book.pdf);
+              const blob = await response.blob();
+              const fileName = `${book.작가명}_${book.작품명}.pdf`;
+              zip.file(fileName, blob);
+              console.log(`✅ 추가됨: ${fileName}`);
+            } catch (error) {
+              console.error(`❌ 실패: ${book.작가명}`, error);
+            }
+          }
+
+          // ZIP 파일 생성 및 다운로드
+          downloadBtn.textContent = "💾 ZIP 파일 다운로드 중...";
+          const content = await zip.generateAsync({ type: "blob" });
+
+          const link = document.createElement("a");
+          link.href = URL.createObjectURL(content);
+          link.download = "2025_서울동행인문학_전체PDF.zip";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+
+          alert(
+            `${pdfBooks.length}개의 PDF 파일이 ZIP으로 다운로드되었습니다.`
+          );
+        } catch (error) {
+          console.error("ZIP 생성 오류:", error);
+          alert("ZIP 파일 생성 중 오류가 발생했습니다.");
+        } finally {
+          downloadBtn.textContent = originalText;
+          downloadBtn.disabled = false;
+        }
       }
 
       function escapeHtml(s) {
@@ -705,29 +836,38 @@
           .replaceAll("'", "&#39;");
       }
 
-      // 초기화
-      document.addEventListener('DOMContentLoaded', function() {
+      document.addEventListener("DOMContentLoaded", function () {
         renderLecturerOptions();
         renderList();
 
-        // 이벤트 리스너
-        document.getElementById("lecturerSelect").addEventListener("change", renderList);
-        document.getElementById("searchInput").addEventListener("input", renderList);
+        document
+          .getElementById("lecturerSelect")
+          .addEventListener("change", renderList);
+        document
+          .getElementById("searchInput")
+          .addEventListener("input", renderList);
 
-        // 뷰 모드 버튼 이벤트
-        document.getElementById("authorView").addEventListener("click", function() {
-          currentViewMode = 'author';
-          document.getElementById("authorView").classList.add('active');
-          document.getElementById("gridView").classList.remove('active');
-          renderList();
-        });
+        document
+          .getElementById("authorView")
+          .addEventListener("click", function () {
+            currentViewMode = "author";
+            document.getElementById("authorView").classList.add("active");
+            document.getElementById("gridView").classList.remove("active");
+            renderList();
+          });
 
-        document.getElementById("gridView").addEventListener("click", function() {
-          currentViewMode = 'grid';
-          document.getElementById("gridView").classList.add('active');
-          document.getElementById("authorView").classList.remove('active');
-          renderList();
-        });
+        document
+          .getElementById("gridView")
+          .addEventListener("click", function () {
+            currentViewMode = "grid";
+            document.getElementById("gridView").classList.add("active");
+            document.getElementById("authorView").classList.remove("active");
+            renderList();
+          });
+
+        document
+          .getElementById("downloadAllPdf")
+          .addEventListener("click", downloadAllPdf);
       });
     </script>
   </body>
